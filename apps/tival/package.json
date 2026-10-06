@@ -1,0 +1,50 @@
+{
+  "name": "tival",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack --port 3000",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "db:seed": "tsx scripts/seed.ts",
+    "fake:calendly": "tsx scripts/fake-calendly-webhook.ts",
+    "fake:pago-mp": "tsx scripts/fake-pago-mp.ts",
+    "inngest:dev": "npx --ignore-scripts=false inngest-cli@latest dev -u http://localhost:3000/api/inngest",
+    "db:migrate-status": "tsx scripts/migrate-case-status.ts",
+    "db:migrate-drop-won-lost": "tsx scripts/migrate-drop-won-lost-status.ts",
+    "db:migrate-contacts": "tsx scripts/migrate-contacts-companies.ts",
+    "db:seed-demo": "tsx scripts/seed-demo-identity.ts",
+    "db:wipe-opps": "tsx scripts/wipe-identity-opps.ts"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
+    "inngest": "^4.21.1",
+    "next": "15.5.25",
+    "postgres": "^3.4.9",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20.19.43",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^9",
+    "eslint-config-next": "15.5.25",
+    "tailwindcss": "^4",
+    "tsx": "^4.23.13",
+    "typescript": "^5"
+  }
+}

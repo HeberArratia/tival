@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Inteligencia · Tival</title>
+    <link rel="stylesheet" href="assets/styles.css" />
+  </head>
+  <body data-page="inteligencia">
+    <div class="shell">
+      <aside class="sidebar" id="sidebar"></aside>
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <h1>Inteligencia</h1>
+            <p>Lo que hoy es el dashboard Intelligence sobre Bigin.</p>
+          </div>
+          <div class="topbar-actions">
+            <div class="tabs">
+              <button class="is-active" type="button">Consultoría</button>
+              <button type="button">Impulsa</button>
+            </div>
+          </div>
+        </header>
+
+        <div class="content">
+          <section class="stats rise">
+            <div class="stat">
+              <div class="label">Válidos</div>
+              <div class="value display">47</div>
+              <div class="hint">mes actual</div>
+            </div>
+            <div class="stat">
+              <div class="label">Realizados</div>
+              <div class="value display">34</div>
+              <div class="hint">72% show-up</div>
+            </div>
+            <div class="stat">
+              <div class="label">Debieron</div>
+              <div class="value display">39</div>
+              <div class="hint">incl. no show</div>
+            </div>
+            <div class="stat">
+              <div class="label">Cierres</div>
+              <div class="value display accent">6</div>
+              <div class="hint">cerrado ganado</div>
+            </div>
+          </section>
+
+          <div class="grid-2" style="margin-top: 1.5rem;">
+            <section class="panel rise rise-d1">
+              <h3>Actividad semanal</h3>
+              <p class="lede">Diagnósticos por día · fecha_reunion</p>
+              <div class="chart" style="margin-top: 0.75rem;">
+                <div class="bar"><i style="height: 45%"></i><span>L</span></div>
+                <div class="bar"><i style="height: 70%"></i><span>M</span></div>
+                <div class="bar"><i style="height: 55%"></i><span>X</span></div>
+                <div class="bar"><i style="height: 90%"></i><span>J</span></div>
+                <div class="bar"><i style="height: 40%"></i><span>V</span></div>
+                <div class="bar"><i style="height: 15%"></i><span>S</span></div>
+                <div class="bar"><i style="height: 10%"></i><span>D</span></div>
+              </div>
+            </section>
+
+            <section class="panel rise rise-d2">
+              <h3>Válidos por consultor</h3>
+              <p class="lede">Meta 20 / mes</p>
+              <div class="split-metric">
+                <div style="flex:1">
+                  <div style="display:flex; justify-content:space-between; font-size:0.84rem"><strong>Heber</strong><span>16</span></div>
+                  <div class="progress"><i style="width:80%"></i></div>
+                </div>
+              </div>
+              <div class="split-metric">
+                <div style="flex:1">
+                  <div style="display:flex; justify-content:space-between; font-size:0.84rem"><strong>Camila</strong><span>12</span></div>
+                  <div class="progress"><i style="width:60%"></i></div>
+                </div>
+              </div>
+              <div class="split-metric">
+                <div style="flex:1">
+                  <div style="display:flex; justify-content:space-between; font-size:0.84rem"><strong>Felipe</strong><span>9</span></div>
+                  <div class="progress"><i style="width:45%"></i></div>
+                </div>
+              </div>
+              <div class="split-metric">
+                <div style="flex:1">
+                  <div style="display:flex; justify-content:space-between; font-size:0.84rem"><strong>Equipo</strong><span>10</span></div>
+                  <div class="progress"><i style="width:50%"></i></div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <section class="section rise rise-d3">
+            <div class="section-head">
+              <h2>Rentabilidad (preview)</h2>
+              <span>Desde docs consultoría · intelligence</span>
+            </div>
+            <div class="grid-3">
+              <div class="panel">
+                <div class="mono" style="font-size:0.68rem; color:var(--t-faint)">INGRESO MES</div>
+                <div class="display" style="font-size:1.6rem; font-weight:600; margin-top:0.2rem">$28.4M</div>
+              </div>
+              <div class="panel">
+                <div class="mono" style="font-size:0.68rem; color:var(--t-faint)">COSTO SESIÓN</div>
+                <div class="display" style="font-size:1.6rem; font-weight:600; margin-top:0.2rem">$4.1M</div>
+              </div>
+              <div class="panel">
+                <div class="mono" style="font-size:0.68rem; color:var(--t-faint)">MARGEN</div>
+                <div class="display" style="font-size:1.6rem; font-weight:600; margin-top:0.2rem; color:var(--t-teal-deep)">86%</div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="assets/shell.js"></script>
+  </body>
+</html>

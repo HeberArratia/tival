@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Diagnósticos · Tival</title>
+    <link rel="stylesheet" href="assets/styles.css" />
+  </head>
+  <body data-page="diagnosticos">
+    <div class="shell">
+      <aside class="sidebar" id="sidebar"></aside>
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <h1>Diagnósticos</h1>
+            <p>Agenda + pago + ops — el motor comercial de consultoría.</p>
+          </div>
+          <div class="topbar-actions">
+            <div class="tabs">
+              <a class="is-active" href="diagnosticos.html">Cola</a>
+              <a href="inteligencia.html">Métricas</a>
+            </div>
+          </div>
+        </header>
+
+        <div class="content">
+          <section class="stats rise">
+            <div class="stat">
+              <div class="label">Válidos mes</div>
+              <div class="value display">47</div>
+              <div class="hint">consultoría</div>
+            </div>
+            <div class="stat">
+              <div class="label">Realizados</div>
+              <div class="value display">34</div>
+              <div class="hint">sesión efectuada</div>
+            </div>
+            <div class="stat">
+              <div class="label">Pendientes</div>
+              <div class="value display accent">8</div>
+              <div class="hint">pagado / reagenda</div>
+            </div>
+            <div class="stat">
+              <div class="label">No show</div>
+              <div class="value display">5</div>
+              <div class="hint">rechazado</div>
+            </div>
+          </section>
+
+          <section class="section rise rise-d1">
+            <div class="callout">
+              <div>
+                <strong>Dos automatizaciones distintas (hoy en alfonsito)</strong>
+                <p>
+                  <b>Agenda</b>: calificación → slot → pago → CRM.
+                  <b>Propuesta / post</b>: reunión → borrador → follow.
+                  En Tival son etapas del mismo playbook, no apps separadas.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section rise rise-d2">
+            <div class="section-head">
+              <h2>Cola operativa</h2>
+              <span>Hoy · needs acción</span>
+            </div>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Empresa</th>
+                  <th>Stage</th>
+                  <th>Pago</th>
+                  <th>Reunión</th>
+                  <th>Owner</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Vita Salud Spa</strong></td>
+                  <td><span class="pill pill-warn">Diagnóstico Pagado</span></td>
+                  <td>Transferencia · por confirmar</td>
+                  <td>Mié 11:00</td>
+                  <td>Ops</td>
+                </tr>
+                <tr>
+                  <td><strong>Meridian Tech</strong></td>
+                  <td><span class="pill pill-run">Setter</span></td>
+                  <td>MP OK</td>
+                  <td>Jue 10:00</td>
+                  <td>Heber</td>
+                </tr>
+                <tr>
+                  <td><strong>Andes Food</strong></td>
+                  <td><span class="pill pill-ok">Realizado</span></td>
+                  <td>OK</td>
+                  <td>Hoy 09:30</td>
+                  <td>Camila</td>
+                </tr>
+                <tr>
+                  <td><strong>Puerto Verde</strong></td>
+                  <td><span class="pill">En reagendamiento</span></td>
+                  <td>OK</td>
+                  <td>—</td>
+                  <td>Heber</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section class="section rise rise-d3">
+            <div class="grid-2">
+              <div class="panel">
+                <h3>Meta por consultor</h3>
+                <p class="lede">20 diagnósticos / mes</p>
+                <div class="split-metric">
+                  <div style="flex: 1;">
+                    <div style="display:flex; justify-content: space-between; font-size: 0.84rem;">
+                      <strong>Heber</strong><span>16 / 20</span>
+                    </div>
+                    <div class="progress"><i style="width: 80%"></i></div>
+                  </div>
+                </div>
+                <div class="split-metric">
+                  <div style="flex: 1;">
+                    <div style="display:flex; justify-content: space-between; font-size: 0.84rem;">
+                      <strong>Camila</strong><span>12 / 20</span>
+                    </div>
+                    <div class="progress"><i style="width: 60%"></i></div>
+                  </div>
+                </div>
+                <div class="split-metric">
+                  <div style="flex: 1;">
+                    <div style="display:flex; justify-content: space-between; font-size: 0.84rem;">
+                      <strong>Felipe</strong><span>9 / 20</span>
+                    </div>
+                    <div class="progress"><i style="width: 45%"></i></div>
+                  </div>
+                </div>
+              </div>
+              <div class="panel">
+                <h3>Ops de pago</h3>
+                <p class="lede">Transferencias y fulfillment manual (hoy /diagnostico/ops).</p>
+                <div class="row-list" style="margin-top: 0.5rem;">
+                  <div class="row">
+                    <div>
+                      <div class="row-title">Vita Salud Spa</div>
+                      <p class="row-sub">$89.000 · comprobante subido</p>
+                    </div>
+                    <button class="btn btn-primary" type="button">Aprobar</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="assets/shell.js"></script>
+  </body>
+</html>

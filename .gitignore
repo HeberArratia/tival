@@ -1,0 +1,25 @@
+# OS / editor
+.DS_Store
+.cursor/
+*.pem
+
+# Dependencies & build (por si quedan fuera de apps/tival)
+node_modules/
+.next/
+out/
+build/
+coverage/
+*.tsbuildinfo
+
+# Env / secrets — nunca subir
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Referencias locales (pesadas, no son la app)
+insumos/
+
+# Data local
+**/data/
+**/data/pglite/

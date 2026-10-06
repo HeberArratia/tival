@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Captación · Tival</title>
+    <link rel="stylesheet" href="assets/styles.css" />
+  </head>
+  <body data-page="captacion">
+    <div class="shell">
+      <aside class="sidebar" id="sidebar"></aside>
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <h1>Captación</h1>
+            <p>Lo que hoy vive en alfondo-app: landings, formularios, Pixel, Sequenzy.</p>
+          </div>
+          <div class="topbar-actions">
+            <a class="btn" href="diagnosticos.html">Ir a diagnósticos</a>
+          </div>
+        </header>
+
+        <div class="content">
+          <section class="stats rise">
+            <div class="stat">
+              <div class="label">Leads 7d</div>
+              <div class="value display">142</div>
+              <div class="hint">formularios + insights</div>
+            </div>
+            <div class="stat">
+              <div class="label">Sequenzy</div>
+              <div class="value display">91%</div>
+              <div class="hint">sync OK</div>
+            </div>
+            <div class="stat">
+              <div class="label">Pixel</div>
+              <div class="value display">38</div>
+              <div class="hint">Lead events</div>
+            </div>
+            <div class="stat">
+              <div class="label">→ Agenda</div>
+              <div class="value display accent">19</div>
+              <div class="hint">pasaron a diagnóstico</div>
+            </div>
+          </section>
+
+          <section class="section rise rise-d1">
+            <div class="section-head">
+              <h2>Cómo entra un lead al sistema</h2>
+              <span>Una sola tubería hacia el Runtime</span>
+            </div>
+            <div class="flow">
+              <span class="flow-step is-hot">Landing / form</span>
+              <span class="flow-arrow">→</span>
+              <span class="flow-step">Validación</span>
+              <span class="flow-arrow">→</span>
+              <span class="flow-step">Sequenzy + DB</span>
+              <span class="flow-arrow">→</span>
+              <span class="flow-step">Pixel / CAPI</span>
+              <span class="flow-arrow">→</span>
+              <span class="flow-step">Caso Tival</span>
+              <span class="flow-arrow">→</span>
+              <span class="flow-step">Setter / Agenda</span>
+            </div>
+          </section>
+
+          <section class="section rise rise-d2">
+            <div class="section-head">
+              <h2>Fuentes activas (Alfondo)</h2>
+            </div>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Fuente</th>
+                  <th>Tipo</th>
+                  <th>Lista / tag</th>
+                  <th>Último lead</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Diagnóstico innovación</strong></td>
+                  <td>Landing pagada</td>
+                  <td class="mono">diag_innovacion</td>
+                  <td>hace 18 min</td>
+                  <td><a href="diagnosticos.html" style="color: var(--t-teal-deep); font-weight: 600;">ver →</a></td>
+                </tr>
+                <tr>
+                  <td><strong>Guía Ley I+D</strong></td>
+                  <td>Insight / lead magnet</td>
+                  <td class="mono">guia_ley_id</td>
+                  <td>hace 41 min</td>
+                  <td><span class="pill">nurture</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Semilla empleo</strong></td>
+                  <td>Diagnóstico + Kapso</td>
+                  <td class="mono">semilla_empleo</td>
+                  <td>hace 2 h</td>
+                  <td><span class="pill pill-run">WA activo</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Crece 26</strong></td>
+                  <td>Programa / checkout</td>
+                  <td class="mono">crece26</td>
+                  <td>ayer</td>
+                  <td><span class="pill">pago</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section class="section rise rise-d3">
+            <div class="grid-3">
+              <div class="panel">
+                <h3>Formularios</h3>
+                <p class="lede">Recolección unificada → Sequenzy + Postgres.</p>
+              </div>
+              <div class="panel">
+                <h3>Atribución</h3>
+                <p class="lede">Meta Pixel + CAPI en eventos Lead / Schedule / Purchase.</p>
+              </div>
+              <div class="panel">
+                <h3>Calificación</h3>
+                <p class="lede">Preguntas por producto (alfonsito) antes de agenda.</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="assets/shell.js"></script>
+  </body>
+</html>

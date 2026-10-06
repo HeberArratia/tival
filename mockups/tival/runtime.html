@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Runtime · Tival</title>
+    <link rel="stylesheet" href="assets/styles.css" />
+  </head>
+  <body data-page="runtime">
+    <div class="shell">
+      <aside class="sidebar" id="sidebar"></aside>
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <h1>Runtime</h1>
+            <p>Casos avanzando por el proceso — no un tablero CRM.</p>
+          </div>
+          <div class="topbar-actions">
+            <a class="btn btn-ghost" href="proceso.html">Playbook</a>
+            <a class="btn btn-primary" href="caso.html">Abrir caso hot</a>
+          </div>
+        </header>
+
+        <div class="content">
+          <section class="stats rise">
+            <div class="stat">
+              <div class="label">En vuelo</div>
+              <div class="value display">18</div>
+              <div class="hint">casos activos</div>
+            </div>
+            <div class="stat">
+              <div class="label">Agentes</div>
+              <div class="value display">7</div>
+              <div class="hint">ejecutando ahora</div>
+            </div>
+            <div class="stat">
+              <div class="label">Handoff</div>
+              <div class="value display accent">3</div>
+              <div class="hint">esperan humano</div>
+            </div>
+            <div class="stat">
+              <div class="label">Cierre 7d</div>
+              <div class="value display">4</div>
+              <div class="hint">propuestas enviadas</div>
+            </div>
+          </section>
+
+          <section class="section rise rise-d1">
+            <div class="section-head">
+              <h2>Intervención humana</h2>
+              <span>El proceso pide a una persona — el resto sigue solo</span>
+            </div>
+            <div class="row-list">
+              <a class="row" href="caso.html">
+                <div>
+                  <div class="row-title">
+                    Norte Logística
+                    <span class="pill pill-wait">espera humano</span>
+                    <span class="pill">hot</span>
+                  </div>
+                  <p class="row-sub">Revisar borrador de propuesta antes de enviar</p>
+                  <p class="row-meta">Etapa · Propuesta · Camila Reyes · hace 12 min</p>
+                </div>
+                <span class="actor" data-actor="humano"><i></i> humano</span>
+              </a>
+              <a class="row" href="reunion.html">
+                <div>
+                  <div class="row-title">
+                    Andes Food
+                    <span class="pill pill-wait">espera humano</span>
+                  </div>
+                  <p class="row-sub">Validar score de reunión y confirmar alcance</p>
+                  <p class="row-meta">Etapa · Reunión · Felipe Mora · hace 41 min</p>
+                </div>
+                <span class="actor" data-actor="humano"><i></i> humano</span>
+              </a>
+              <a class="row" href="diagnosticos.html">
+                <div>
+                  <div class="row-title">
+                    Vita Salud Spa
+                    <span class="pill pill-warn">pago pendiente</span>
+                  </div>
+                  <p class="row-sub">Transferencia por confirmar — diagnóstico agendado</p>
+                  <p class="row-meta">Etapa · Diagnóstico · ops · hace 2 h</p>
+                </div>
+                <span class="actor" data-actor="humano"><i></i> ops</span>
+              </a>
+            </div>
+          </section>
+
+          <section class="section rise rise-d2">
+            <div class="section-head">
+              <h2>Agentes en curso</h2>
+              <span>Avance automático del playbook Alfondo</span>
+            </div>
+            <div class="row-list">
+              <div class="row">
+                <div>
+                  <div class="row-title">
+                    Meridian Tech
+                    <span class="pill pill-run">en curso</span>
+                  </div>
+                  <p class="row-sub">Setter confirmando asistencia por WhatsApp</p>
+                  <p class="row-meta">Etapa · Setter · reunión mañana 10:00</p>
+                </div>
+                <span class="actor" data-actor="agente"><i></i> agente</span>
+              </div>
+              <div class="row">
+                <div>
+                  <div class="row-title">
+                    Costa Retail
+                    <span class="pill pill-run">en curso</span>
+                  </div>
+                  <p class="row-sub">Alta paralela: Bigin + carpeta Drive</p>
+                  <p class="row-meta">Etapa · Persistencia (join) · hace 4 min</p>
+                </div>
+                <span class="actor" data-actor="sistema"><i></i> sistema</span>
+              </div>
+              <div class="row">
+                <div>
+                  <div class="row-title">
+                    Quinta Studio
+                    <span class="pill pill-run">en curso</span>
+                  </div>
+                  <p class="row-sub">Cadencia día 7 — nudge de cierre por Gmail</p>
+                  <p class="row-meta">Etapa · Seguimiento · tag cold → warm</p>
+                </div>
+                <span class="actor" data-actor="agente"><i></i> follow</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="section rise rise-d3">
+            <div class="callout">
+              <div class="kpi-ring">72%</div>
+              <div>
+                <strong>Show-up proyectado esta semana</strong>
+                <p>
+                  De 14 diagnósticos válidos, 10 ya realizados. El runtime
+                  dispara reagenda automática cuando no hay show-up.
+                  <a href="inteligencia.html" style="color: var(--t-teal-deep); font-weight: 600;"> Ver inteligencia →</a>
+                </p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="assets/shell.js"></script>
+  </body>
+</html>

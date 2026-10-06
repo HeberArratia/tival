@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Seguimiento · Tival</title>
+    <link rel="stylesheet" href="assets/styles.css" />
+  </head>
+  <body data-page="seguimiento">
+    <div class="shell">
+      <aside class="sidebar" id="sidebar"></aside>
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <h1>Seguimiento</h1>
+            <p>Ninguna oportunidad sin próximo movimiento.</p>
+          </div>
+          <div class="topbar-actions">
+            <a class="btn btn-primary" href="runtime.html">Ver runtime</a>
+          </div>
+        </header>
+
+        <div class="content">
+          <section class="section rise">
+            <div class="callout">
+              <div>
+                <strong>Propuesta enviada · Norte Logística</strong>
+                <p>
+                  Cadencia activada: toque WhatsApp en 48h · reminder Gmail día 7 ·
+                  si señal externa hot → playbook de cierre.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section class="section rise rise-d1">
+            <div class="section-head">
+              <h2>Cadencias activas</h2>
+              <span>Agente ag-follow</span>
+            </div>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Caso</th>
+                  <th>Tag</th>
+                  <th>Canal</th>
+                  <th>Próximo toque</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Norte Logística</strong></td>
+                  <td><span class="tag tag-hot">hot</span></td>
+                  <td>WhatsApp</td>
+                  <td>en 36 h</td>
+                  <td><span class="pill pill-run">programado</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Quinta Studio</strong></td>
+                  <td><span class="tag">warm</span></td>
+                  <td>Gmail</td>
+                  <td>hoy 17:00</td>
+                  <td><span class="pill pill-run">en cola</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Costa Retail</strong></td>
+                  <td><span class="tag">cold</span></td>
+                  <td>Gmail</td>
+                  <td>día 14</td>
+                  <td><span class="pill">nurture</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section class="section rise rise-d2">
+            <div class="grid-3">
+              <div class="panel">
+                <h3>Playbook 48h</h3>
+                <p class="lede">Hot: WhatsApp corto + link a propuesta.</p>
+              </div>
+              <div class="panel">
+                <h3>Playbook 7d</h3>
+                <p class="lede">Warm: mail con caso similar + CTA de call.</p>
+              </div>
+              <div class="panel">
+                <h3>Señal externa</h3>
+                <p class="lede">News / lanzamiento → nudge de cierre.</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+    <script src="assets/shell.js"></script>
+  </body>
+</html>
