@@ -6,7 +6,6 @@ process.env.USE_PGLITE = process.env.USE_PGLITE || "1";
 import { eq } from "drizzle-orm";
 import { getDb } from "../src/db";
 import {
-  caseEvents,
   cases,
   integrationConnections,
   playbookStages,
@@ -19,11 +18,6 @@ import {
 } from "../src/lib/integrations/connections";
 import { seedWorkspaceUsers } from "../src/lib/auth/seed";
 import { SEED_DEFAULT_PASSWORD } from "../src/lib/auth/seed-users";
-import {
-  linkContactCompany,
-  resolveCompany,
-  resolveContact,
-} from "../src/lib/identity";
 import { seedProductsIfEmpty } from "../src/lib/products-db";
 import { ALFONDO_CONSULTORIA_STAGES } from "../src/workspaces/alfondo/playbook-consultoria";
 
@@ -209,123 +203,6 @@ async function main() {
       await db
         .delete(playbookStages)
         .where(eq(playbookStages.id, legacyPropuesta.id));
-    }
-  }
-
-  const stages = await db
-    .select()
-    .from(playbookStages)
-    .where(eq(playbookStages.playbookId, playbook.id));
-
-  const byKey = Object.fromEntries(stages.map((s) => [s.key, s]));
-
-  const existingCases = await db.select().from(cases).limit(1);
-  if (existingCases.length === 0) {
-    const demo = [
-      {
-        status: "open" as const,
-        contactName: "Camila Reyes",
-        companyName: "Norte Logística",
-        contactEmail: "camila@nortelogistica.cl",
-        companyRut: "76.123.456-7",
-        calendlyEventUuid: "seed-norte-001",
-        scheduledAt: new Date(Date.now() + 86400000 * 2),
-        meetUrl: "https://meet.google.com/seed-norte",
-        calendlyRoute: "A",
-        paymentMethod: "transferencia" as const,
-        paymentStatus: "pending" as const,
-        currentStageId: byKey.lead.id,
-        landingSource: "diagnostico-innovacion",
-      },
-      {
-        status: "open" as const,
-        contactName: "Felipe Mora",
-        companyName: "Andes Food",
-        contactEmail: "felipe@andesfood.cl",
-        companyRut: "76.234.567-8",
-        calendlyEventUuid: "seed-andes-002",
-        scheduledAt: new Date(Date.now() + 86400000),
-        meetUrl: "https://meet.google.com/seed-andes",
-        calendlyRoute: "A",
-        paymentMethod: "mercadopago" as const,
-        paymentStatus: "paid" as const,
-        paidAt: new Date(),
-        paymentConfirmedBy: "seed",
-        currentStageId: byKey.pagado.id,
-        landingSource: "diagnostico-landing",
-      },
-      {
-        status: "open" as const,
-        contactName: "María Soto",
-        companyName: "Meridian Tech",
-        contactEmail: "maria@meridian.cl",
-        companyRut: "76.345.678-9",
-        calendlyEventUuid: "seed-meridian-003",
-        scheduledAt: new Date(Date.now() + 86400000 * 3),
-        meetUrl: "https://meet.google.com/seed-meridian",
-        calendlyRoute: "B",
-        paymentStatus: "none" as const,
-        currentStageId: byKey.lead.id,
-        landingSource: "guia-ley-id",
-      },
-    ];
-
-    for (const row of demo) {
-      const contact = await resolveContact({
-        workspaceId: workspace.id,
-        email: row.contactEmail,
-        name: row.contactName,
-        phoneSource: "seed",
-      });
-      const company = await resolveCompany({
-        workspaceId: workspace.id,
-        rut: row.companyRut,
-        name: row.companyName,
-      });
-      if (company) await linkContactCompany(contact.id, company.id);
-
-      const {
-        contactName: _n,
-        companyName: _co,
-        contactEmail: _e,
-        companyRut: _r,
-        ...caseFields
-      } = row;
-
-      const [created] = await db
-        .insert(cases)
-        .values({
-          workspaceId: workspace.id,
-          playbookId: playbook.id,
-          contactId: contact.id,
-          companyId: company?.id ?? null,
-          ...caseFields,
-        })
-        .returning();
-
-      await db.insert(caseEvents).values({
-        caseId: created.id,
-        type: "calendly_scheduled",
-        payload: { seed: true },
-        actor: "seed",
-      });
-
-      if (row.paymentStatus === "paid") {
-        await db.insert(caseEvents).values({
-          caseId: created.id,
-          type: "payment_approved",
-          payload: { seed: true },
-          actor: "seed",
-        });
-      }
-      if (row.paymentStatus === "pending") {
-        await db.insert(caseEvents).values({
-          caseId: created.id,
-          type: "checkout_started",
-          payload: { method: "transferencia", seed: true },
-          actor: "seed",
-        });
-      }
     }
   }
 

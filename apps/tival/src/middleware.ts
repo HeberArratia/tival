@@ -8,6 +8,7 @@ function isPublic(pathname: string): boolean {
   if (pathname.startsWith("/api/auth/login")) return true;
   if (pathname.startsWith("/api/webhooks/")) return true;
   if (pathname.startsWith("/api/payments")) return true;
+  if (pathname.startsWith("/api/inngest")) return true;
   if (pathname.startsWith("/api/integrations/google-drive/callback"))
     return true;
   if (pathname.startsWith("/_next/")) return true;
