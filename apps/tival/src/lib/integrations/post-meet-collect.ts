@@ -100,10 +100,15 @@ export type CollectAttemptResult =
         | "missing_drive_folder"
         | "google_not_connected"
         | "no_conference"
-        | "artifacts_not_ready";
+        | "artifacts_not_ready"
+        | "waiting_for_recording";
       ended: boolean;
     }
   | { ok: false; error: string };
+
+function hasRecording(moved: PostMeetState["moved"]) {
+  return Boolean(moved?.some((m) => m.kind === "recording"));
+}
 
 /** Un intento de recolección (sin sleep). */
 export async function attemptPostMeetCollect(
@@ -114,7 +119,8 @@ export async function attemptPostMeetCollect(
   if (!row) return { ok: false, error: "case_not_found" };
 
   const prev = readPostMeet(row);
-  if (prev.status === "collected" && (prev.moved?.length ?? 0) > 0) {
+  // Cerrar solo si ya movimos la grabación. Notas solas no alcanzan.
+  if (hasRecording(prev.moved)) {
     return {
       ok: true,
       done: true,
@@ -185,30 +191,11 @@ export async function attemptPostMeetCollect(
     };
   }
 
-  const notes = ready.artifacts.filter((a) => a.kind === "notes");
-  const toMove =
-    notes.length > 0
-      ? ready.artifacts
-      : ready.ended
-        ? ready.artifacts
-        : [];
+  const already = new Set((prev.moved ?? []).map((m) => m.fileId));
+  const pending = ready.artifacts.filter((a) => !already.has(a.fileId));
 
-  if (toMove.length === 0) {
-    await setPostMeetState(caseId, {
-      status: "waiting",
-      conferenceName: ready.conference.name,
-      endedAt: ready.conference.endTime ?? null,
-    });
-    return {
-      ok: true,
-      done: false,
-      reason: "artifacts_not_ready",
-      ended: ready.ended,
-    };
-  }
-
-  const moved: NonNullable<PostMeetState["moved"]> = [];
-  for (const art of toMove) {
+  const moved: NonNullable<PostMeetState["moved"]> = [...(prev.moved ?? [])];
+  for (const art of pending) {
     await moveDriveFile({
       fileId: art.fileId,
       destinationFolderId: row.driveFolderId,
@@ -221,10 +208,29 @@ export async function attemptPostMeetCollect(
     });
   }
 
+  const conferenceName = ready.conference.name;
+  const endedAt = ready.conference.endTime ?? null;
+
+  if (!hasRecording(moved)) {
+    await setPostMeetState(caseId, {
+      status: "waiting",
+      conferenceName,
+      endedAt,
+      moved,
+      error: null,
+    });
+    return {
+      ok: true,
+      done: false,
+      reason: moved.length > 0 ? "waiting_for_recording" : "artifacts_not_ready",
+      ended: ready.ended,
+    };
+  }
+
   await setPostMeetState(caseId, {
     status: "collected",
-    conferenceName: ready.conference.name,
-    endedAt: ready.conference.endTime ?? null,
+    conferenceName,
+    endedAt,
     moved,
     error: null,
   });
@@ -232,7 +238,7 @@ export async function attemptPostMeetCollect(
   await db.insert(caseEvents).values({
     caseId,
     type: "post_meet_collected",
-    payload: { moved, conferenceName: ready.conference.name },
+    payload: { moved, conferenceName },
     actor: "integracion",
   });
 
