@@ -18,6 +18,10 @@ import {
   fetchReadyMeetArtifacts,
   type MeetArtifact,
 } from "@/lib/integrations/google-meet/client";
+import {
+  buildN8nProposalPayload,
+  triggerN8nProposalDraft,
+} from "@/lib/integrations/n8n-proposal";
 
 export type PostMeetStatus =
   | "idle"
@@ -193,6 +197,7 @@ export async function attemptPostMeetCollect(
 
   const already = new Set((prev.moved ?? []).map((m) => m.fileId));
   const pending = ready.artifacts.filter((a) => !already.has(a.fileId));
+  const newlyMovedNotes = pending.filter((a) => a.kind === "notes");
 
   const moved: NonNullable<PostMeetState["moved"]> = [...(prev.moved ?? [])];
   for (const art of pending) {
@@ -206,6 +211,56 @@ export async function attemptPostMeetCollect(
       fileId: art.fileId,
       exportUri: art.exportUri,
     });
+  }
+
+  // Primera vez que llegan Notas → webhook n8n (propuesta). Idempotente vía pending.
+  if (newlyMovedNotes.length > 0) {
+    const notesFileId = newlyMovedNotes[0]!.fileId;
+    try {
+      const built = await buildN8nProposalPayload({ caseId, notesFileId });
+      if ("error" in built) {
+        await db.insert(caseEvents).values({
+          caseId,
+          type: "proposal_n8n_failed",
+          payload: { error: built.error, notesFileId },
+          actor: "integracion",
+        });
+      } else if (!built.consultantEmail) {
+        await db.insert(caseEvents).values({
+          caseId,
+          type: "proposal_n8n_skipped",
+          payload: { reason: "missing_consultant", notesFileId },
+          actor: "integracion",
+        });
+      } else {
+        const triggered = await triggerN8nProposalDraft(built);
+        if (!triggered.ok) {
+          await db.insert(caseEvents).values({
+            caseId,
+            type: "proposal_n8n_failed",
+            payload: { error: triggered.error, notesFileId },
+            actor: "integracion",
+          });
+        } else if (triggered.skipped) {
+          await db.insert(caseEvents).values({
+            caseId,
+            type: "proposal_n8n_skipped",
+            payload: { reason: triggered.reason, notesFileId },
+            actor: "integracion",
+          });
+        }
+      }
+    } catch (e) {
+      await db.insert(caseEvents).values({
+        caseId,
+        type: "proposal_n8n_failed",
+        payload: {
+          error: e instanceof Error ? e.message : "n8n_trigger_exception",
+          notesFileId,
+        },
+        actor: "integracion",
+      });
+    }
   }
 
   const conferenceName = ready.conference.name;

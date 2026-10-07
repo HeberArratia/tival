@@ -412,6 +412,50 @@ export function MarkPropuestaEnviadaButton({
   );
 }
 
+/** Regenera propuesta en n8n. Solo si hay notas movidas y consultor asignado. */
+export function GenerateProposalButton({
+  caseId,
+  canGenerate,
+  className = "btn",
+}: {
+  caseId: string;
+  canGenerate: boolean;
+  className?: string;
+}) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!canGenerate) return null;
+
+  async function run() {
+    setLoading(true);
+    setError(null);
+    try {
+      const ok = await postAction(caseId, "generate_proposal");
+      if (!ok) setError("No se pudo disparar la propuesta");
+      else router.refresh();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}>
+      <button
+        type="button"
+        className={className}
+        disabled={loading}
+        onClick={run}
+        title="Genera el correo de propuesta y lo envía al consultor asignado"
+      >
+        {loading ? "…" : "Generar propuesta"}
+      </button>
+      {error ? <span className="row-meta">{error}</span> : null}
+    </span>
+  );
+}
+
 /** Diagnóstico pagado → Diagnóstico realizado (modal recuerda campos ops). */
 export function MarkRealizadoButton({
   caseId,
@@ -608,6 +652,7 @@ export function CaseActions({
   productOptions,
   currentConsultantId,
   consultants = [],
+  canGenerateProposal = false,
 }: {
   caseId: string;
   status: string;
@@ -619,6 +664,7 @@ export function CaseActions({
   productOptions?: ProductOption[];
   currentConsultantId?: string | null;
   consultants?: ConsultantOption[];
+  canGenerateProposal?: boolean;
 }) {
   return (
     <>
@@ -651,6 +697,10 @@ export function CaseActions({
         currentRegion={currentRegion}
         currentProductKeys={currentProductKeys}
         productOptions={productOptions}
+      />
+      <GenerateProposalButton
+        caseId={caseId}
+        canGenerate={canGenerateProposal}
       />
       <MarkPropuestaEnviadaButton
         caseId={caseId}

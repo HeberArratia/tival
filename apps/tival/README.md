@@ -86,6 +86,19 @@ npm run inngest:dev
 
 Env Cloud (Vercel): `INNGEST_ENV`, `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY` del env production.
 
+### Propuesta (n8n)
+
+Cuando post-meet mueve por primera vez un artifact `notes`, Tival hace `POST` al webhook n8n con el contexto del case (`caseId`, carpeta, `notesFileId`, consultor, etc.). n8n redacta el correo, lo envía al consultor y avisa en Slack `#novedades`.
+
+```bash
+# .env.local / Vercel
+N8N_PROPOSAL_WEBHOOK_URL=https://<n8n>/webhook/tival-proposal-draft
+# opcional (si el webhook exige header)
+# N8N_PROPOSAL_WEBHOOK_SECRET=...
+```
+
+Sin `N8N_PROPOSAL_WEBHOOK_URL` el disparo se omite (`proposal_n8n_skipped`). Eventos: `proposal_n8n_triggered` / `proposal_n8n_failed` / `proposal_n8n_skipped`.
+
 Mercado Pago, Slack y Bigin aparecen en el catálogo (próximos).
 
 ### Simular webhook Calendly (sin túnel)

@@ -48,6 +48,7 @@ import {
 import { memberById } from "@/lib/members-catalog";
 import { membersWithRole } from "@/lib/members";
 import { nextActionForCase } from "@/lib/process-effects";
+import { getPostMeetState } from "@/lib/integrations/post-meet-collect";
 import { lostReasonLabel } from "@/lib/lost-reasons";
 import {
   formatClp,
@@ -102,6 +103,11 @@ export default async function IniciativaOportunidadPage({
     ? await listCompaniesForContact(c.contactId)
     : [];
   const currentProductKeys = productKeysFromQualification(qualification);
+  const postMeet = getPostMeetState(c);
+  const canGenerateProposal = Boolean(
+    c.assignedConsultantId &&
+      postMeet.moved?.some((m) => m.kind === "notes")
+  );
   const catalogProducts = await listProducts({ activeOnly: false }).catch(
     () => []
   );
@@ -177,6 +183,7 @@ export default async function IniciativaOportunidadPage({
               productOptions={productOptions}
               currentConsultantId={c.assignedConsultantId}
               consultants={consultants}
+              canGenerateProposal={canGenerateProposal}
             />
           ) : (
             <span className="pill pill-warn">acciones etapa 2</span>

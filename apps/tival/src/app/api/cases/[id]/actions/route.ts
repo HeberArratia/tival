@@ -21,6 +21,7 @@ import { isChileRegion } from "@/lib/chile-regions";
 import { isClosingScore } from "@/lib/closing-scores";
 import { isLostReason } from "@/lib/lost-reasons";
 import { isMemberId } from "@/lib/members-catalog";
+import { retryN8nProposal } from "@/lib/integrations/n8n-proposal";
 
 export const runtime = "nodejs";
 
@@ -263,6 +264,17 @@ export async function POST(
         actor,
       });
       return NextResponse.json({ ok: true, case: row });
+    }
+
+    if (action === "generate_proposal") {
+      const result = await retryN8nProposal(id);
+      if (!result.ok) {
+        return NextResponse.json(
+          { ok: false, error: result.error },
+          { status: 400 }
+        );
+      }
+      return NextResponse.json({ ok: true, skipped: result.skipped ?? false });
     }
 
     if (action === "no_show") {
