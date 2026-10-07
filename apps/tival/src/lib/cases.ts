@@ -1121,6 +1121,47 @@ export async function assignConsultant(input: {
     },
     actor
   );
+
+  // Calendar invite + Meet COHOST (best-effort; fuera del request HTTP).
+  const grantCaseId = updated.id;
+  const grantConsultantId = input.consultantId;
+  const grantPrevious = current.assignedConsultantId;
+  const grantActor = actor;
+  setTimeout(() => {
+    void import("@/lib/integrations/grant-consultant-meet-access")
+      .then(({ scheduleGrantConsultantMeetAccess }) =>
+        scheduleGrantConsultantMeetAccess({
+          caseId: grantCaseId,
+          consultantId: grantConsultantId,
+          previousConsultantId: grantPrevious,
+          actor: grantActor,
+        })
+      )
+      .catch((err) => {
+        console.error(
+          "[assignConsultant.grant]",
+          grantCaseId,
+          err instanceof Error ? err.message : err
+        );
+      });
+  }, 0);
+
+  // Slack vía n8n (mención <@U…>); no bloquea la asignación.
+  void import("@/lib/integrations/n8n-consultant-assigned-notice")
+    .then(({ scheduleNotifyConsultantAssigned }) =>
+      scheduleNotifyConsultantAssigned({
+        row: updated,
+        consultantId: input.consultantId,
+      })
+    )
+    .catch((err) => {
+      console.error(
+        "[assignConsultant.slack]",
+        updated.id,
+        err instanceof Error ? err.message : err
+      );
+    });
+
   return updated;
 }
 
@@ -1317,6 +1358,12 @@ export async function applyMeetEnrichment(
   // Post-meet collect (Inngest): requiere meetCode; carpeta puede llegar al pagar.
   void import("@/inngest/functions/post-meet-collect").then(({ schedulePostMeetCollect }) =>
     schedulePostMeetCollect(updated.id)
+  );
+
+  // Si ya había consultor asignado antes del enrichment, otorgar COHOST ahora.
+  void import("@/lib/integrations/grant-consultant-meet-access").then(
+    ({ scheduleGrantIfConsultantAssigned }) =>
+      scheduleGrantIfConsultantAssigned(updated)
   );
 
   return updated;

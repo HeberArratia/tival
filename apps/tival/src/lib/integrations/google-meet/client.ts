@@ -1,6 +1,8 @@
 /**
- * Google Meet API v2 (conferenceRecords → smartNotes / recordings / transcripts).
- * Requiere scope meetings.space.readonly + token de la cuenta organizadora.
+ * Google Meet API v2:
+ * - conferenceRecords → smartNotes / recordings / transcripts (readonly)
+ * - spaces + members → COHOST al asignar consultor (space.created)
+ * Token de la cuenta organizadora (host Calendly / Google del workspace).
  */
 
 const MEET_API = "https://meet.googleapis.com/v2";
@@ -10,6 +12,19 @@ export type MeetConferenceRecord = {
   startTime?: string;
   endTime?: string;
   space?: string;
+};
+
+export type MeetSpace = {
+  name: string;
+  meetingUri?: string;
+  meetingCode?: string;
+};
+
+export type MeetSpaceMember = {
+  name: string;
+  email?: string;
+  role?: "ROLE_UNSPECIFIED" | "COHOST" | string;
+  user?: string;
 };
 
 export type MeetSmartNote = {
@@ -57,14 +72,24 @@ function extractDriveFileId(resource?: string | null): string | null {
 
 async function meetFetch<T>(
   accessToken: string,
-  path: string
+  path: string,
+  init?: { method?: string; body?: unknown }
 ): Promise<{ ok: true; data: T } | { ok: false; error: string; status: number }> {
+  const method = init?.method ?? "GET";
   const res = await fetch(`${MEET_API}${path}`, {
+    method,
     headers: {
       Authorization: `Bearer ${accessToken}`,
       Accept: "application/json",
+      ...(init?.body !== undefined
+        ? { "Content-Type": "application/json" }
+        : {}),
     },
+    body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
   });
+  if (res.status === 204) {
+    return { ok: true, data: {} as T };
+  }
   const data = (await res.json().catch(() => ({}))) as T & {
     error?: { message?: string };
   };
@@ -76,6 +101,237 @@ async function meetFetch<T>(
     };
   }
   return { ok: true, data };
+}
+
+/** Resuelve space real (`spaces/{id}`) desde meeting code (alias). */
+export async function getSpaceByMeetingCode(input: {
+  accessToken: string;
+  meetingCode: string;
+}): Promise<
+  | { ok: true; space: MeetSpace }
+  | { ok: false; error: string; status?: number }
+> {
+  const code = input.meetingCode.trim().toLowerCase();
+  const result = await meetFetch<MeetSpace>(
+    input.accessToken,
+    `/spaces/${encodeURIComponent(code)}`
+  );
+  if (!result.ok) {
+    return { ok: false, error: result.error, status: result.status };
+  }
+  if (!result.data.name) {
+    return { ok: false, error: "meet_space_name_missing" };
+  }
+  return { ok: true, space: result.data };
+}
+
+/**
+ * Activa/desactiva host management (= UI "Gestión de anfitrión").
+ * Requiere scope meetings.space.settings (válido también en meets de Calendar).
+ */
+export async function patchSpaceModeration(input: {
+  accessToken: string;
+  spaceName: string;
+  moderation: "ON" | "OFF";
+}): Promise<
+  | { ok: true; space: MeetSpace }
+  | { ok: false; error: string; status?: number }
+> {
+  const name = input.spaceName.startsWith("spaces/")
+    ? input.spaceName
+    : `spaces/${input.spaceName}`;
+  const result = await meetFetch<MeetSpace>(
+    input.accessToken,
+    `/${name}?updateMask=config.moderation`,
+    {
+      method: "PATCH",
+      body: {
+        config: { moderation: input.moderation },
+      },
+    }
+  );
+  if (!result.ok) {
+    return { ok: false, error: result.error, status: result.status };
+  }
+  return { ok: true, space: result.data };
+}
+
+export async function listSpaceMembers(input: {
+  accessToken: string;
+  spaceName: string;
+}): Promise<
+  | { ok: true; members: MeetSpaceMember[] }
+  | { ok: false; error: string; status?: number }
+> {
+  const parent = input.spaceName.startsWith("spaces/")
+    ? input.spaceName
+    : `spaces/${input.spaceName}`;
+  const result = await meetFetch<{ members?: MeetSpaceMember[] }>(
+    input.accessToken,
+    `/${parent}/members`
+  );
+  if (!result.ok) {
+    if (result.status === 404) return { ok: true, members: [] };
+    return { ok: false, error: result.error, status: result.status };
+  }
+  return { ok: true, members: result.data.members ?? [] };
+}
+
+export async function createSpaceMember(input: {
+  accessToken: string;
+  spaceName: string;
+  email: string;
+  role?: "COHOST" | "ROLE_UNSPECIFIED";
+}): Promise<
+  | { ok: true; member: MeetSpaceMember }
+  | { ok: false; error: string; status?: number }
+> {
+  const parent = input.spaceName.startsWith("spaces/")
+    ? input.spaceName
+    : `spaces/${input.spaceName}`;
+  const result = await meetFetch<MeetSpaceMember>(
+    input.accessToken,
+    `/${parent}/members`,
+    {
+      method: "POST",
+      body: {
+        email: input.email.trim().toLowerCase(),
+        role: input.role ?? "COHOST",
+      },
+    }
+  );
+  if (!result.ok) {
+    return { ok: false, error: result.error, status: result.status };
+  }
+  return { ok: true, member: result.data };
+}
+
+export async function deleteSpaceMember(input: {
+  accessToken: string;
+  memberName: string;
+}): Promise<{ ok: true } | { ok: false; error: string; status?: number }> {
+  const name = input.memberName.startsWith("spaces/")
+    ? input.memberName
+    : input.memberName;
+  const result = await meetFetch<Record<string, never>>(
+    input.accessToken,
+    `/${name}`,
+    { method: "DELETE" }
+  );
+  if (!result.ok) {
+    if (result.status === 404) return { ok: true };
+    return { ok: false, error: result.error, status: result.status };
+  }
+  return { ok: true };
+}
+
+/** Quita member por email (si existe) y/o crea COHOST. */
+export async function ensureSpaceCohost(input: {
+  accessToken: string;
+  spaceName: string;
+  email: string;
+  previousEmails?: string[];
+}): Promise<
+  | {
+      ok: true;
+      member: MeetSpaceMember | null;
+      removed: string[];
+      alreadyCohost: boolean;
+    }
+  | { ok: false; error: string; status?: number; step?: string }
+> {
+  const email = input.email.trim().toLowerCase();
+  const listed = await listSpaceMembers({
+    accessToken: input.accessToken,
+    spaceName: input.spaceName,
+  });
+  if (!listed.ok) {
+    return {
+      ok: false,
+      error: listed.error,
+      status: listed.status,
+      step: "list_members",
+    };
+  }
+
+  const removed: string[] = [];
+  const prev = new Set(
+    (input.previousEmails ?? [])
+      .map((e) => e.trim().toLowerCase())
+      .filter((e) => e && e !== email)
+  );
+
+  for (const m of listed.members) {
+    const mEmail = (m.email || "").trim().toLowerCase();
+    if (!mEmail || !prev.has(mEmail) || !m.name) continue;
+    const del = await deleteSpaceMember({
+      accessToken: input.accessToken,
+      memberName: m.name,
+    });
+    if (!del.ok) {
+      return {
+        ok: false,
+        error: del.error,
+        status: del.status,
+        step: "delete_member",
+      };
+    }
+    removed.push(mEmail);
+  }
+
+  const existing = listed.members.find(
+    (m) => (m.email || "").trim().toLowerCase() === email
+  );
+  if (existing?.role === "COHOST") {
+    return {
+      ok: true,
+      member: existing,
+      removed,
+      alreadyCohost: true,
+    };
+  }
+
+  const created = await createSpaceMember({
+    accessToken: input.accessToken,
+    spaceName: input.spaceName,
+    email,
+    role: "COHOST",
+  });
+  if (!created.ok) {
+    // Ya es member con otro rol / duplicado: intentar listar de nuevo
+    if (created.status === 409 || /already|exists/i.test(created.error)) {
+      const again = await listSpaceMembers({
+        accessToken: input.accessToken,
+        spaceName: input.spaceName,
+      });
+      const found = again.ok
+        ? again.members.find(
+            (m) => (m.email || "").trim().toLowerCase() === email
+          )
+        : null;
+      if (found) {
+        return {
+          ok: true,
+          member: found,
+          removed,
+          alreadyCohost: found.role === "COHOST",
+        };
+      }
+    }
+    return {
+      ok: false,
+      error: created.error,
+      status: created.status,
+      step: "create_member",
+    };
+  }
+
+  return {
+    ok: true,
+    member: created.member,
+    removed,
+    alreadyCohost: false,
+  };
 }
 
 export async function listConferenceRecordsByMeetingCode(input: {

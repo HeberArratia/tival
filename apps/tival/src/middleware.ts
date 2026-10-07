@@ -6,6 +6,8 @@ const SESSION_COOKIE = "tival_session";
 function isPublic(pathname: string): boolean {
   if (pathname === "/login") return true;
   if (pathname.startsWith("/api/auth/login")) return true;
+  // Logout debe poder limpiar cookie aunque la sesión en DB ya no exista.
+  if (pathname.startsWith("/api/auth/logout")) return true;
   if (pathname.startsWith("/api/webhooks/")) return true;
   if (pathname.startsWith("/api/payments")) return true;
   if (pathname.startsWith("/api/inngest")) return true;

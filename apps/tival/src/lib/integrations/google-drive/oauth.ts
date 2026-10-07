@@ -7,16 +7,20 @@ const USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinfo";
 /**
  * Google del workspace:
  * - Drive: carpetas / mover artefactos
- * - Calendar readonly: hangoutLink / meeting code
+ * - Calendar events: hangoutLink + invitar consultor al evento
  * - Meet readonly: conferenceRecords, notes, recordings, transcripts
+ * - Meet space.created: COHOST al asignar consultor
+ * - Meet space.settings: moderation (host management) + auto-artefactos
  *
  * Tras cambiar scopes hay que reconectar en /integraciones (prompt=consent).
  * En GCP también debe estar enabled Calendar API + Google Meet API.
  */
 export const DRIVE_OAUTH_SCOPES = [
   "https://www.googleapis.com/auth/drive",
-  "https://www.googleapis.com/auth/calendar.readonly",
+  "https://www.googleapis.com/auth/calendar.events",
   "https://www.googleapis.com/auth/meetings.space.readonly",
+  "https://www.googleapis.com/auth/meetings.space.created",
+  "https://www.googleapis.com/auth/meetings.space.settings",
   "https://www.googleapis.com/auth/userinfo.email",
 ].join(" ");
 

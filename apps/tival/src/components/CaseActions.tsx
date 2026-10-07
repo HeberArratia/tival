@@ -66,17 +66,27 @@ async function postAction(
     productKeys?: string[] | null;
     consultantId?: string | null;
   }
-) {
+): Promise<{ ok: boolean; status: number; error?: string }> {
   const res = await fetch(`/api/cases/${caseId}/actions`, {
     method: "POST",
+    credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action, ...payload }),
   });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    console.error(`[CaseAction:${action}]`, data);
+  if (res.ok) return { ok: true, status: res.status };
+
+  const text = await res.text().catch(() => "");
+  let error = `http_${res.status}`;
+  try {
+    const data = text ? (JSON.parse(text) as { error?: string }) : null;
+    if (data?.error) error = data.error;
+    else if (!text) error = "empty_body";
+  } catch {
+    error = text ? `non_json:${text.slice(0, 120)}` : "empty_body";
   }
-  return res.ok;
+  // String only — evita overlay de Next que colapsa objetos a "{}"
+  console.warn(`[CaseAction:${action}] ${res.status} ${error}`);
+  return { ok: false, status: res.status, error };
 }
 
 /** Ops asigna consultor (sugerido en Diagnóstico pagado; no bloquea). */
@@ -117,7 +127,19 @@ export function AssignConsultantButton({
     }
     setLoading(true);
     try {
-      await postAction(caseId, "assign_consultant", { consultantId });
+      const result = await postAction(caseId, "assign_consultant", {
+        consultantId,
+      });
+      if (!result.ok) {
+        if (result.status === 401 || result.error === "unauthorized") {
+          window.alert(
+            "Sesión expirada o no autorizada. Volvé a iniciar sesión e intentá de nuevo."
+          );
+        } else {
+          window.alert(`No se pudo asignar el consultor (${result.error}).`);
+        }
+        return;
+      }
       setOpen(false);
       router.refresh();
     } finally {
@@ -432,8 +454,8 @@ export function GenerateProposalButton({
     setLoading(true);
     setError(null);
     try {
-      const ok = await postAction(caseId, "generate_proposal");
-      if (!ok) setError("No se pudo disparar la propuesta");
+      const result = await postAction(caseId, "generate_proposal");
+      if (!result.ok) setError("No se pudo disparar la propuesta");
       else router.refresh();
     } finally {
       setLoading(false);

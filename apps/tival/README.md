@@ -103,6 +103,8 @@ Al confirmar el pago (`markPaid`, transferencia o Mercado Pago) Tival avisa en S
 
 ```bash
 N8N_PAID_SLACK_WEBHOOK_URL=https://<n8n>/webhook/tival-diagnostico-pagado
+# Al asignar consultor (mención Slack <@U…>)
+N8N_CONSULTANT_SLACK_WEBHOOK_URL=https://<n8n>/webhook/tival-consultor-asignado
 ```
 
 Mercado Pago, Slack y Bigin aparecen en el catálogo (próximos).
