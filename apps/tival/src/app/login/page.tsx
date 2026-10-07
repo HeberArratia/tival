@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { BrandMark } from "@/components/BrandMark";
 import { LoginForm } from "@/components/LoginForm";
 import { getSessionUser } from "@/lib/auth/session";
 
@@ -12,11 +13,7 @@ export default async function LoginPage() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-brand">
-          <div className="brand-mark" aria-hidden>
-            <span />
-            <span />
-            <span />
-          </div>
+          <BrandMark />
           <div>
             <strong>tival</strong>
             <small>Alfondo</small>

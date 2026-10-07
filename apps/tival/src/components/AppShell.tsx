@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BrandMark } from "@/components/BrandMark";
 import { SidebarUser } from "@/components/SidebarUser";
 import { CLOSING_SCORES, isClosingScore } from "@/lib/closing-scores";
 import {
@@ -34,11 +35,7 @@ export function AppShell({
     <div className="shell">
       <aside className="sidebar">
         <Link href="/procesos/diagnostico" className="brand">
-          <div className="brand-mark" aria-hidden>
-            <span />
-            <span />
-            <span />
-          </div>
+          <BrandMark />
           <div>
             <strong>tival</strong>
             <small>operar el proceso</small>

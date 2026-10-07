@@ -71,24 +71,11 @@ button {
 }
 
 .brand-mark {
-  width: 1.35rem;
-  height: 1.35rem;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2px;
-}
-
-.brand-mark span {
-  border-radius: 2px;
-  background: var(--t-coral);
-}
-.brand-mark span:nth-child(2) {
-  background: var(--t-teal);
-  margin-top: 3px;
-  height: 85%;
-}
-.brand-mark span:nth-child(3) {
-  background: #edbdbc;
+  width: 1.55rem;
+  height: 1.55rem;
+  flex-shrink: 0;
+  display: block;
+  border-radius: 0.42rem;
 }
 
 .brand strong {
@@ -1031,6 +1018,12 @@ button.view-tab {
   align-items: center;
   gap: 0.75rem;
   margin-bottom: 1.25rem;
+}
+
+.login-brand .brand-mark {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.55rem;
 }
 
 .login-brand strong {
