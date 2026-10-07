@@ -520,9 +520,7 @@ export async function markPaid(input: {
       },
       "integracion"
     );
-    return { case: drive.case, alreadyPaid: false };
-  }
-  if (!drive.ok && !drive.skipped) {
+  } else if (!drive.ok && !drive.skipped) {
     await appendEvent(
       updated.id,
       "drive_folder_failed",
@@ -531,7 +529,17 @@ export async function markPaid(input: {
     );
   }
 
-  return { case: drive.ok ? drive.case : updated, alreadyPaid: false };
+  const paidCase = drive.ok ? drive.case : updated;
+  try {
+    const { notifyDiagnosticoPagado } = await import(
+      "@/lib/integrations/n8n-paid-notice"
+    );
+    await notifyDiagnosticoPagado(paidCase);
+  } catch (e) {
+    console.error("[paid-slack]", e);
+  }
+
+  return { case: paidCase, alreadyPaid: false };
 }
 
 export async function markNoShow(caseId: string, actor = "ops") {

@@ -107,6 +107,12 @@ const RECIPE_BY_STAGE_KEY: Record<string, StageRecipe> = {
         status: "live",
       },
       {
+        id: "slack-paid",
+        label: "Avisar diagnóstico confirmado",
+        via: "n8n · Slack",
+        status: "live",
+      },
+      {
         id: "meta-capi",
         label: "Informar Purchase a Meta",
         via: "CAPI",

@@ -99,6 +99,12 @@ N8N_PROPOSAL_WEBHOOK_URL=https://<n8n>/webhook/tival-proposal-draft
 
 Sin `N8N_PROPOSAL_WEBHOOK_URL` el disparo se omite (`proposal_n8n_skipped`). Eventos: `proposal_n8n_triggered` / `proposal_n8n_failed` / `proposal_n8n_skipped`.
 
+Al confirmar el pago (`markPaid`, transferencia o Mercado Pago) Tival avisa en Slack `#novedades` vía otro webhook. No se repite si el case ya estaba pagado.
+
+```bash
+N8N_PAID_SLACK_WEBHOOK_URL=https://<n8n>/webhook/tival-diagnostico-pagado
+```
+
 Mercado Pago, Slack y Bigin aparecen en el catálogo (próximos).
 
 ### Simular webhook Calendly (sin túnel)
