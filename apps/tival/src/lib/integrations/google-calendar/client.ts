@@ -85,6 +85,38 @@ export async function fetchCalendarEventMeet(input: {
 }
 
 /**
+ * Cancela / borra el evento (y el Meet asociado).
+ * sendUpdates=all notifica a los invitados.
+ */
+export async function deleteCalendarEvent(input: {
+  accessToken: string;
+  eventId: string;
+  calendarId?: string;
+}): Promise<{ ok: true } | { ok: false; error: string; status?: number }> {
+  const url = `${calendarEventUrl(input.eventId, input.calendarId)}?sendUpdates=all`;
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${input.accessToken}` },
+  });
+
+  // 204 No Content = ok; 410 Gone / 404 = ya no existe.
+  if (res.status === 204 || res.status === 404 || res.status === 410) {
+    return { ok: true };
+  }
+
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as CalendarEventRaw;
+    return {
+      ok: false,
+      status: res.status,
+      error: data.error?.message || `calendar_delete_${res.status}`,
+    };
+  }
+
+  return { ok: true };
+}
+
+/**
  * Invita / quita attendees del evento. No toca organizer.
  * sendUpdates=all notifica a los invitados.
  */

@@ -533,6 +533,32 @@ export async function cancelCase(input: {
   const actor = input.actor ?? "sistema";
   const fromOps = actor !== "calendly" && actor !== "sistema";
 
+  // Ya en Perdido (p.ej. no_pago canceló Meet vía Calendly → webhook).
+  // No pisar etapa terminal ni lost_reason con status cancelled.
+  const { stages } = await resolvePlaybookContext({
+    workspaceId: current.workspaceId,
+  });
+  const perdidoStage = stages.find((s) => s.key === "perdido");
+  const ganadoStage = stages.find((s) => s.key === "ganado");
+  if (
+    (perdidoStage && current.currentStageId === perdidoStage.id) ||
+    (ganadoStage && current.currentStageId === ganadoStage.id)
+  ) {
+    await appendEvent(
+      current.id,
+      fromOps ? "ops_cancelled" : "calendly_canceled",
+      {
+        reason: input.reason,
+        ignored: true,
+        because: "already_terminal_stage",
+        stageId: current.currentStageId,
+        lostReason: current.lostReason,
+      },
+      actor
+    );
+    return current;
+  }
+
   const [updated] = await db
     .update(cases)
     .set({
@@ -772,6 +798,29 @@ export async function markLost(input: {
     { reason, fromStageId: current.currentStageId },
     actor
   );
+
+  // No pagó (típicamente Lead entrante): cancelar reunión Calendar/Meet.
+  if (reason === "no_pago") {
+    const cancelCaseId = updated.id;
+    const cancelActor = actor;
+    setTimeout(() => {
+      void import("@/lib/integrations/cancel-case-meeting")
+        .then(({ scheduleCancelCaseMeeting }) =>
+          scheduleCancelCaseMeeting({
+            caseId: cancelCaseId,
+            actor: cancelActor,
+          })
+        )
+        .catch((err) => {
+          console.error(
+            "[markLost.cancelMeeting]",
+            cancelCaseId,
+            err instanceof Error ? err.message : err
+          );
+        });
+    }, 0);
+  }
+
   return updated;
 }
 

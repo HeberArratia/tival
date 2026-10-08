@@ -98,6 +98,28 @@ export async function fetchCalendlyScheduledEvent(input: {
   return { ok: true, resource: result.data.resource };
 }
 
+/** Cancela el evento en Calendly (cascada a Calendar/Meet + webhook invitee.canceled). */
+export async function cancelCalendlyScheduledEvent(input: {
+  apiToken: string;
+  eventUuid: string;
+  reason?: string;
+}): Promise<{ ok: true } | { ok: false; error: string; status?: number }> {
+  const result = await calendlyFetch<{
+    resource?: { canceled_by?: string; reason?: string | null };
+  }>(
+    input.apiToken,
+    `/scheduled_events/${encodeURIComponent(input.eventUuid)}/cancellation`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        reason: input.reason?.trim() || "No pagó · oportunidad perdida",
+      }),
+    }
+  );
+  if (!result.ok) return result;
+  return { ok: true };
+}
+
 export async function fetchCalendlyCurrentUser(apiToken: string): Promise<
   | { ok: true; user: CalendlyUserMe }
   | { ok: false; error: string; status?: number }

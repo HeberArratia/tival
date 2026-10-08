@@ -251,6 +251,12 @@ const RECIPE_BY_STAGE_KEY: Record<string, StageRecipe> = {
         via: "Dominio",
         status: "live",
       },
+      {
+        id: "cancel-meeting",
+        label: "Cancelar reunión Calendar/Meet (si no_pago)",
+        via: "Integración",
+        status: "live",
+      },
     ],
   },
   inbound: {
@@ -519,6 +525,21 @@ const EVENT_LABELS: Record<
     title: "Humano · perdido",
     kind: "humano",
     result: "ok",
+  },
+  meeting_canceled: {
+    title: "Efecto · reunión Calendar/Meet cancelada",
+    kind: "efecto",
+    result: "ok",
+  },
+  meeting_cancel_skipped: {
+    title: "Efecto · cancelación reunión omitida",
+    kind: "efecto",
+    result: "info",
+  },
+  meeting_cancel_failed: {
+    title: "Efecto · cancelación reunión falló",
+    kind: "efecto",
+    result: "fail",
   },
   marked_won: {
     title: "Humano · ganado",
