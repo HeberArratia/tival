@@ -800,25 +800,23 @@ export async function markLost(input: {
   );
 
   // No pagó (típicamente Lead entrante): cancelar reunión Calendar/Meet.
+  // Await (no setTimeout): en serverless el fire-and-forget se corta al responder.
   if (reason === "no_pago") {
-    const cancelCaseId = updated.id;
-    const cancelActor = actor;
-    setTimeout(() => {
-      void import("@/lib/integrations/cancel-case-meeting")
-        .then(({ scheduleCancelCaseMeeting }) =>
-          scheduleCancelCaseMeeting({
-            caseId: cancelCaseId,
-            actor: cancelActor,
-          })
-        )
-        .catch((err) => {
-          console.error(
-            "[markLost.cancelMeeting]",
-            cancelCaseId,
-            err instanceof Error ? err.message : err
-          );
-        });
-    }, 0);
+    try {
+      const { cancelCaseMeetingAndLog } = await import(
+        "@/lib/integrations/cancel-case-meeting"
+      );
+      await cancelCaseMeetingAndLog({
+        caseId: updated.id,
+        actor,
+      });
+    } catch (err) {
+      console.error(
+        "[markLost.cancelMeeting]",
+        updated.id,
+        err instanceof Error ? err.message : err
+      );
+    }
   }
 
   return updated;

@@ -179,35 +179,50 @@ async function logCancelResult(
   });
 }
 
-/** Fire-and-forget tras markLost(no_pago). */
+/** Cancela y deja traza en timeline. Awaitable (seguro en serverless). */
+export async function cancelCaseMeetingAndLog(input: {
+  caseId: string;
+  actor?: string;
+}): Promise<CancelCaseMeetingResult> {
+  const actor = input.actor ?? "integracion";
+  try {
+    const result = await cancelCaseMeeting(input.caseId);
+    await logCancelResult(input.caseId, result, actor);
+    return result;
+  } catch (err) {
+    console.error(
+      "[cancel-case-meeting]",
+      input.caseId,
+      err instanceof Error ? err.message : err
+    );
+    try {
+      const db = await getDb();
+      await db.insert(caseEvents).values({
+        caseId: input.caseId,
+        type: "meeting_cancel_failed",
+        payload: {
+          error: err instanceof Error ? err.message : "unknown_error",
+          step: "unexpected",
+        },
+        actor,
+      });
+    } catch {
+      // ignore secondary log failure
+    }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "unknown_error",
+      step: "unexpected",
+    };
+  }
+}
+
+/** @deprecated Prefer cancelCaseMeetingAndLog (await). */
 export function scheduleCancelCaseMeeting(input: {
   caseId: string;
   actor?: string;
 }) {
-  const actor = input.actor ?? "integracion";
-  void cancelCaseMeeting(input.caseId)
-    .then((result) => logCancelResult(input.caseId, result, actor))
-    .catch(async (err) => {
-      console.error(
-        "[cancel-case-meeting]",
-        input.caseId,
-        err instanceof Error ? err.message : err
-      );
-      try {
-        const db = await getDb();
-        await db.insert(caseEvents).values({
-          caseId: input.caseId,
-          type: "meeting_cancel_failed",
-          payload: {
-            error: err instanceof Error ? err.message : "unknown_error",
-            step: "unexpected",
-          },
-          actor,
-        });
-      } catch {
-        // ignore secondary log failure
-      }
-    });
+  void cancelCaseMeetingAndLog(input);
 }
 
 /** Helper tipado por si hace falta cancelar desde otro flujo. */
