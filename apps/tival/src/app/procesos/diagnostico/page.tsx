@@ -286,11 +286,14 @@ export default async function DiagnosticoInnovacionCanvasPage({
         }
       : null);
 
-  /** Excepciones (cancelled / no_show / …) no son etapas del playbook — fuera del canvas. */
-  const EXCEPTION_STATUSES = ["cancelled", "no_show", "rescheduled_away"];
+  /**
+   * Canceladas / supersedidas fuera del canvas.
+   * no_show (esperando reagenda) sí se muestra en su etapa para no perderlas de vista.
+   */
+  const HIDDEN_STATUSES = ["cancelled", "rescheduled_away"];
 
   const opportunities = all.filter((c) => {
-    if (EXCEPTION_STATUSES.includes(c.status)) return false;
+    if (HIDDEN_STATUSES.includes(c.status)) return false;
     const ini = initiativeForCase(c);
     if (ini?.id === initiative.id) return true;
     if (bundle && c.playbookId === bundle.playbook.id) return true;

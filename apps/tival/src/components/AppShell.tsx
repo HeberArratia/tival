@@ -168,7 +168,7 @@ export function StatusPill({ status }: { status: string }) {
   const labels: Record<string, string> = {
     open: "open",
     cancelled: "cancelado",
-    no_show: "no-show",
+    no_show: "esperando reagenda",
     rescheduled_away: "reagendada",
   };
   return (
