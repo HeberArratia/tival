@@ -347,8 +347,7 @@ export const FAKE_INITIATIVES: FakeInitiative[] = [
     segmentMode: "classify",
     config: {
       landingUrl: "https://alfondo.cl/diagnostico-innovacion",
-      calendlyUrl:
-        "https://calendly.com/alfondo/asesoria-diagnostico-proyecto-50-minutos",
+      calendlyUrl: "https://calendly.com/alfondo/diagnostico",
     },
   },
   {
