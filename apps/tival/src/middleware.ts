@@ -13,6 +13,8 @@ function isPublic(pathname: string): boolean {
   if (pathname.startsWith("/api/inngest")) return true;
   if (pathname.startsWith("/api/integrations/google-drive/callback"))
     return true;
+  // Link público de reagenda → redirect a Calendly
+  if (pathname.startsWith("/r/")) return true;
   if (pathname.startsWith("/_next/")) return true;
   if (pathname === "/favicon.ico") return true;
   return false;

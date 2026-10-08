@@ -67,6 +67,8 @@ async function main() {
       name?: string;
       email?: string;
       text_reminder_number?: string;
+      cancel_url?: string;
+      reschedule_url?: string;
       questions_and_answers?: Array<{ question?: string; answer?: string }>;
       tracking?: { utm_source?: string };
     }>;
@@ -82,8 +84,22 @@ async function main() {
     )?.answer ||
     null;
 
+  const qualification: Record<string, unknown> = {};
+  if (invitee.reschedule_url) qualification.reschedule_url = invitee.reschedule_url;
+  if (invitee.cancel_url) qualification.cancel_url = invitee.cancel_url;
+  for (const qa of invitee.questions_and_answers ?? []) {
+    const q = qa.question || "";
+    if (/proyecto|cuenta/i.test(q) && qa.answer) {
+      qualification.mensaje_usuario = qa.answer;
+    }
+    if (/rut|factura/i.test(q) && qa.answer) {
+      qualification.rut_facturacion = qa.answer;
+    }
+  }
+
   console.log("event:", event.resource.name, event.resource.start_time);
   console.log("invitee:", invitee.name, invitee.email, phone);
+  console.log("reschedule:", invitee.reschedule_url ?? "—");
 
   const created = await scheduleCase({
     workspaceId: ws.id,
@@ -97,6 +113,8 @@ async function main() {
       ? new Date(event.resource.start_time)
       : null,
     meetUrl: event.resource.location?.join_url ?? null,
+    qualification:
+      Object.keys(qualification).length > 0 ? qualification : undefined,
   });
 
   await touchConnectionEvent(cal.id);

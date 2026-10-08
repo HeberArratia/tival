@@ -22,7 +22,10 @@ import {
   isAwaitingRescheduleActive,
   readAwaitingReschedule,
 } from "@/lib/awaiting-reschedule";
-import { buildCalendlyBookingLink } from "@/lib/calendly-booking-link";
+import {
+  buildTivalReagendaUrl,
+  canShareReagendaLink,
+} from "@/lib/reagenda-link";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import {
   EventTimeline,
@@ -146,34 +149,15 @@ export default async function IniciativaOportunidadPage({
     typeof qualification.reschedule_url === "string"
       ? qualification.reschedule_url
       : null;
-  const meetingPassed = c.scheduledAt
-    ? c.scheduledAt.getTime() < Date.now()
-    : false;
-  const prefilledReagendaLink =
-    calendlyBase && (awaitingActive || c.status === "no_show")
-      ? buildCalendlyBookingLink(calendlyBase, {
-          name: c.contact?.name,
-          email: c.contact?.email,
-          phone: c.contact?.primaryPhone ?? phones[0]?.phone,
-          mensaje:
-            typeof qualification.mensaje_usuario === "string"
-              ? qualification.mensaje_usuario
-              : null,
-          rut:
-            typeof qualification.rut_facturacion === "string"
-              ? qualification.rut_facturacion
-              : null,
-          caseId: c.id,
-          reagenda: true,
-        })
-      : null;
-  const nativeRescheduleLink =
-    rescheduleUrl && !meetingPassed && c.status === "open"
-      ? rescheduleUrl
-      : null;
-  const calendlyLink = awaitingActive
-    ? prefilledReagendaLink
-    : nativeRescheduleLink ?? prefilledReagendaLink;
+  const reagendaShareLink = canShareReagendaLink({
+    status: c.status,
+    scheduledAt: c.scheduledAt,
+    qualification,
+    hasRescheduleUrl: Boolean(rescheduleUrl),
+    hasCalendlyBase: Boolean(calendlyBase),
+  })
+    ? buildTivalReagendaUrl(c.id)
+    : null;
   const next = nextActionForCase({
     status: c.status,
     paymentStatus: c.paymentStatus,
@@ -224,7 +208,7 @@ export default async function IniciativaOportunidadPage({
               paymentStatus={c.paymentStatus}
               stageKey={currentStage?.key}
               hasScheduledAt={Boolean(c.scheduledAt)}
-              calendlyLink={calendlyLink}
+              calendlyLink={reagendaShareLink}
               canGenerateProposal={canGenerateProposal}
             />
           ) : (
@@ -331,7 +315,7 @@ export default async function IniciativaOportunidadPage({
               }}
             >
               <CopyCalendlyLinkButton
-                url={calendlyLink}
+                url={reagendaShareLink}
                 label="Copiar link reagenda"
                 className="btn btn-primary"
               />

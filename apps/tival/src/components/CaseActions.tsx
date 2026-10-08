@@ -535,7 +535,7 @@ export function CancelSupersededButton({
   );
 }
 
-/** Copia link Calendly (reschedule nativo o booking prefildado). */
+/** Copia link de reagenda (URL Tival `/r/{caseId}` → redirect a Calendly). */
 export function CopyCalendlyLinkButton({
   url,
   label = "Copiar link reagenda",
