@@ -14,15 +14,10 @@ import {
 import {
   normalizeCalendlyBody,
   parseCalendlyInviteePayload,
+  scheduledEventUuidFromCalendlyRef,
 } from "@/lib/integrations/calendly-parse";
 import { scheduleMeetEnrichmentJob } from "@/inngest/functions/enrich-meet";
 import { getWorkspacePack } from "@/lib/workspace/registry";
-
-function extractUuid(uriOrId?: string | null) {
-  if (!uriOrId) return null;
-  const parts = uriOrId.split("/").filter(Boolean);
-  return parts[parts.length - 1] || null;
-}
 
 /**
  * Calendly firma: header `Calendly-Webhook-Signature: t=…,v1=…`
@@ -136,8 +131,31 @@ export async function handleCalendlyWebhook(input: {
     };
   }
 
+  const payload = (body.payload ?? body) as Record<string, unknown>;
+  /** Reagenda nativa: canceled trae rescheduled+new_invitee; created trae old_invitee. */
+  const previousEventUuid = scheduledEventUuidFromCalendlyRef(
+    payload.old_invitee
+  );
+  const isNativeReschedule =
+    payload.rescheduled === true ||
+    Boolean(payload.old_invitee) ||
+    Boolean(payload.new_invitee);
+
   try {
     if (event.includes("canceled") || event.includes("cancelled")) {
+      // El created del slot nuevo hace el merge. Cancelar acá borraría la opp pagada.
+      if (isNativeReschedule) {
+        await touchConnectionEvent(connection.id);
+        return {
+          status: 200 as const,
+          body: {
+            ok: true,
+            action: "reschedule_cancel_ignored",
+            workspace: workspace.slug,
+          },
+        };
+      }
+
       const result = await cancelCase({
         workspaceId: workspace.id,
         calendlyEventUuid: eventUuid,
@@ -156,32 +174,13 @@ export async function handleCalendlyWebhook(input: {
       };
     }
 
-    const payload = (body.payload ?? body) as Record<string, unknown>;
-    if (
-      event.includes("rescheduled") ||
-      payload?.old_invitee ||
-      payload?.rescheduled === true
-    ) {
-      const oldInvitee = payload?.old_invitee as
-        | { event?: string }
-        | undefined;
-      const previousEvent = payload?.previous_event as
-        | { uri?: string }
-        | undefined;
-      const oldEvent = payload?.old_event as { uri?: string } | undefined;
-      const oldUri =
-        oldInvitee?.event ?? previousEvent?.uri ?? oldEvent?.uri;
-      const previousUuid = extractUuid(oldUri) ?? eventUuid;
-      const newInvitee = payload?.new_invitee as { event?: string } | undefined;
-      const newUuid =
-        extractUuid(newInvitee?.event ?? eventUri) ?? eventUuid;
-
+    if (previousEventUuid && previousEventUuid !== eventUuid) {
       const q = parsed.qualification;
       const result = await rescheduleCase({
         workspaceId: workspace.id,
         workspaceSlug: workspace.slug,
-        previousCalendlyEventUuid: previousUuid,
-        newCalendlyEventUuid: newUuid,
+        previousCalendlyEventUuid: previousEventUuid,
+        newCalendlyEventUuid: eventUuid,
         calendlyEventUri: eventUri,
         scheduledAt: parsed.scheduledAt,
         meetUrl: parsed.meetUrl,
@@ -193,7 +192,7 @@ export async function handleCalendlyWebhook(input: {
       });
       await touchConnectionEvent(connection.id);
       await scheduleMeetEnrichmentJob(result.id, {
-        calendlyEventUuid: newUuid,
+        calendlyEventUuid: eventUuid,
       });
       return {
         status: 200 as const,

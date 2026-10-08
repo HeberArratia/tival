@@ -46,6 +46,33 @@ function extractUuid(uriOrId?: string | null) {
   return parts[parts.length - 1] || null;
 }
 
+/**
+ * UUID del scheduled event en URIs Calendly.
+ * Invitee: `…/scheduled_events/{event}/invitees/{invitee}` → event (no el último segmento).
+ * Event: `…/scheduled_events/{event}` → event.
+ */
+export function scheduledEventUuidFromCalendlyRef(ref: unknown): string | null {
+  if (!ref) return null;
+  if (typeof ref === "string") return eventUuidFromCalendlyUri(ref);
+  if (typeof ref === "object") {
+    const o = ref as Record<string, unknown>;
+    return (
+      eventUuidFromCalendlyUri(typeof o.event === "string" ? o.event : null) ??
+      eventUuidFromCalendlyUri(typeof o.uri === "string" ? o.uri : null)
+    );
+  }
+  return null;
+}
+
+function eventUuidFromCalendlyUri(uri: string | null): string | null {
+  if (!uri) return null;
+  const parts = uri.split("/").filter(Boolean);
+  const i = parts.indexOf("scheduled_events");
+  if (i >= 0 && parts[i + 1]) return parts[i + 1]!;
+  if (parts.length === 1) return parts[0]!;
+  return null;
+}
+
 function asRecord(v: unknown): Record<string, unknown> {
   return v && typeof v === "object" && !Array.isArray(v)
     ? (v as Record<string, unknown>)
