@@ -168,8 +168,8 @@ export async function enrichMeetForCase(
   };
 }
 
-/** No bloquea: errores quedan en case_events. */
-export function scheduleMeetEnrichment(caseId: string) {
+/** Fallback fire-and-forget (local o si Inngest no encola). */
+export function scheduleMeetEnrichmentInline(caseId: string) {
   void enrichMeetForCase(caseId).catch((err) => {
     console.error(
       "[enrich-meet]",

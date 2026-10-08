@@ -3,6 +3,7 @@ export const LOST_REASONS = {
   no_pago: "Sin pago",
   no_compra: "No compró",
   no_califica: "No califica",
+  no_asistio: "No asistió",
   otro: "Otro",
 } as const;
 

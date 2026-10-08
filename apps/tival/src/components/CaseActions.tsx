@@ -40,12 +40,46 @@ export function canMarkLost(input: {
   paymentStatus: string;
   stageKey?: string;
 }) {
-  if (EXCEPTION_STATUSES.includes(input.status)) return false;
+  if (input.status === "cancelled" || input.status === "rescheduled_away") {
+    return false;
+  }
   if (isTerminalStageKey(input.stageKey)) return false;
+  // No-show (con o sin chance de reagenda) → Perdido / no asistió.
+  if (input.status === "no_show") return true;
   // Pre-pago: sin transferencia.
   if (input.paymentStatus !== "paid") return true;
   // Post-propuesta: no compró.
   return input.stageKey === "propuesta_enviada";
+}
+
+/** No llegó (primera vez): solo Diagnóstico pagado con reunión, status open. */
+export function canMarkNoShowActions(input: {
+  status: string;
+  stageKey?: string;
+  hasScheduledAt?: boolean;
+}) {
+  if (isTerminalStageKey(input.stageKey)) return false;
+  if (input.status === "cancelled" || input.status === "rescheduled_away") {
+    return false;
+  }
+  if (input.status === "no_show") return false;
+  if (!input.hasScheduledAt) return false;
+  return input.stageKey === "pagado";
+}
+
+/** Reagendar / renovar chance (pagado, o desde no_show si expiró el TTL). */
+export function canOfferReschedule(input: {
+  status: string;
+  stageKey?: string;
+  hasScheduledAt?: boolean;
+}) {
+  if (isTerminalStageKey(input.stageKey)) return false;
+  if (input.status === "cancelled" || input.status === "rescheduled_away") {
+    return false;
+  }
+  if (input.status === "no_show") return true;
+  if (!input.hasScheduledAt) return false;
+  return input.stageKey === "pagado";
 }
 
 export function canMarkWon(input: {
@@ -268,7 +302,7 @@ export function ConfirmTransferButton({
   );
 }
 
-/** No pagó (pre-pago) o no compró (post-propuesta) → Perdido. */
+/** No pagó / no compró / no asistió (desde no_show) → Perdido. */
 export function MarkLostButton({
   caseId,
   status,
@@ -291,9 +325,17 @@ export function MarkLostButton({
 
   if (!canMarkLost({ status, paymentStatus, stageKey })) return null;
 
+  const isNoShow = status === "no_show";
   const isPostProposal = stageKey === "propuesta_enviada";
-  const resolvedReason = reason ?? (isPostProposal ? "no_compra" : "no_pago");
-  const label = isPostProposal ? "Perdido" : "No pagó";
+  const resolvedReason =
+    reason ??
+    (isNoShow ? "no_asistio" : isPostProposal ? "no_compra" : "no_pago");
+  const label = isNoShow
+    ? "Perdido · no asistió"
+    : isPostProposal
+      ? "Perdido"
+      : "No pagó";
+  const action = isNoShow ? "no_show_lost" : "mark_lost";
 
   async function run(e: MouseEvent) {
     if (stopPropagation) {
@@ -302,7 +344,11 @@ export function MarkLostButton({
     }
     setLoading(true);
     try {
-      await postAction(caseId, "mark_lost", { reason: resolvedReason });
+      if (action === "no_show_lost") {
+        await postAction(caseId, "no_show_lost");
+      } else {
+        await postAction(caseId, "mark_lost", { reason: resolvedReason });
+      }
       router.refresh();
     } finally {
       setLoading(false);
@@ -316,12 +362,210 @@ export function MarkLostButton({
       disabled={loading}
       onClick={run}
       title={
-        isPostProposal
-          ? "No compró · pasa a Perdido"
-          : "Marca como perdido (sin pago). Pasa a la etapa Perdido."
+        isNoShow
+          ? "Cierra sin chance de reagenda · Perdido / no asistió"
+          : isPostProposal
+            ? "No compró · pasa a Perdido"
+            : "Marca como perdido (sin pago). Pasa a la etapa Perdido."
       }
     >
       {loading ? "…" : label}
+    </button>
+  );
+}
+
+/** No llegó · reagendar (activa awaiting_reschedule). */
+export function MarkNoShowRescheduleButton({
+  caseId,
+  status,
+  stageKey,
+  hasScheduledAt,
+  className = "btn",
+  stopPropagation = false,
+}: {
+  caseId: string;
+  status: string;
+  stageKey?: string;
+  hasScheduledAt?: boolean;
+  className?: string;
+  stopPropagation?: boolean;
+}) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+
+  if (!canOfferReschedule({ status, stageKey, hasScheduledAt })) return null;
+
+  const renew = status === "no_show";
+
+  async function run(e: MouseEvent) {
+    if (stopPropagation) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setLoading(true);
+    try {
+      await postAction(caseId, "no_show_reschedule");
+      router.refresh();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className={className}
+      disabled={loading}
+      onClick={run}
+      title={
+        renew
+          ? "Renueva la ventana de reagenda (mismo case)"
+          : "No llegó · deja chance de reagenda (mismo case)"
+      }
+    >
+      {loading ? "…" : renew ? "Renovar reagenda" : "No llegó · reagendar"}
+    </button>
+  );
+}
+
+/** No llegó · perdido directo (sin pasar por awaiting). */
+export function MarkNoShowLostButton({
+  caseId,
+  status,
+  stageKey,
+  hasScheduledAt,
+  className = "btn",
+  stopPropagation = false,
+}: {
+  caseId: string;
+  status: string;
+  stageKey?: string;
+  hasScheduledAt?: boolean;
+  className?: string;
+  stopPropagation?: boolean;
+}) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+
+  if (!canMarkNoShowActions({ status, stageKey, hasScheduledAt })) return null;
+
+  async function run(e: MouseEvent) {
+    if (stopPropagation) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setLoading(true);
+    try {
+      await postAction(caseId, "no_show_lost");
+      router.refresh();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className={className}
+      disabled={loading}
+      onClick={run}
+      title="No llegó · cierra en Perdido / no asistió"
+    >
+      {loading ? "…" : "No llegó · perdido"}
+    </button>
+  );
+}
+
+/** Cancelar opp duplicada / reemplazada → status cancelled + reason superseded. */
+export function canCancelSuperseded(input: {
+  status: string;
+  stageKey?: string;
+}) {
+  if (isTerminalStageKey(input.stageKey)) return false;
+  if (EXCEPTION_STATUSES.includes(input.status)) return false;
+  return true;
+}
+
+export function CancelSupersededButton({
+  caseId,
+  status,
+  stageKey,
+  className = "btn btn-ghost",
+  stopPropagation = false,
+}: {
+  caseId: string;
+  status: string;
+  stageKey?: string;
+  className?: string;
+  stopPropagation?: boolean;
+}) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+
+  if (!canCancelSuperseded({ status, stageKey })) return null;
+
+  async function run(e: MouseEvent) {
+    if (stopPropagation) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const ok = window.confirm(
+      "¿Cancelar esta oportunidad? Queda fuera del canvas (motivo: superseded). Usalo para duplicados cuando otra opp es la vigente."
+    );
+    if (!ok) return;
+    setLoading(true);
+    try {
+      await postAction(caseId, "cancel", { reason: "superseded" });
+      router.refresh();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className={className}
+      disabled={loading}
+      onClick={run}
+      title="Cancelar duplicado · superseded (queda la otra opp)"
+    >
+      {loading ? "…" : "Cancelar · duplicado"}
+    </button>
+  );
+}
+
+/** Copia link Calendly (reschedule nativo o booking prefildado). */
+export function CopyCalendlyLinkButton({
+  url,
+  label = "Copiar link reagenda",
+  className = "btn",
+}: {
+  url: string | null | undefined;
+  label?: string;
+  className?: string;
+}) {
+  const [copied, setCopied] = useState(false);
+  if (!url) return null;
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(url!);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      window.prompt("Copiá el link:", url!);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className={className}
+      onClick={() => void copy()}
+      title={url}
+    >
+      {copied ? "Copiado" : label}
     </button>
   );
 }
@@ -663,73 +907,106 @@ export function MarkRealizadoButton({
   );
 }
 
+const MENU_ITEM = "case-actions-menu-item";
+
+/**
+ * Acciones secundarias en topbar (menú).
+ * Happy path vive en el banner NextAction — no se repite acá.
+ */
 export function CaseActions({
   caseId,
   status,
   paymentStatus,
   stageKey,
-  currentClosingScore,
-  currentRegion,
-  currentProductKeys,
-  productOptions,
-  currentConsultantId,
-  consultants = [],
   canGenerateProposal = false,
+  hasScheduledAt = false,
+  calendlyLink = null,
 }: {
   caseId: string;
   status: string;
   paymentStatus: string;
   stageKey?: string;
-  currentClosingScore?: string | null;
-  currentRegion?: string | null;
-  currentProductKeys?: string[];
-  productOptions?: ProductOption[];
-  currentConsultantId?: string | null;
-  consultants?: ConsultantOption[];
   canGenerateProposal?: boolean;
+  hasScheduledAt?: boolean;
+  calendlyLink?: string | null;
 }) {
+  const [open, setOpen] = useState(false);
+
+  const showNoShow = canOfferReschedule({ status, stageKey, hasScheduledAt });
+  const showNoShowLost = canMarkNoShowActions({
+    status,
+    stageKey,
+    hasScheduledAt,
+  });
+  const showLost = canMarkLost({ status, paymentStatus, stageKey });
+  const showCancel = canCancelSuperseded({ status, stageKey });
+  const showLink = Boolean(calendlyLink);
+  const hasAnything =
+    showNoShow ||
+    showNoShowLost ||
+    showLost ||
+    showCancel ||
+    showLink ||
+    canGenerateProposal;
+
+  if (!hasAnything) return null;
+
   return (
-    <>
-      <ConfirmTransferButton
-        caseId={caseId}
-        status={status}
-        paymentStatus={paymentStatus}
-        stageKey={stageKey}
-      />
-      <AssignConsultantButton
-        caseId={caseId}
-        status={status}
-        paymentStatus={paymentStatus}
-        stageKey={stageKey}
-        currentConsultantId={currentConsultantId}
-        consultants={consultants}
-      />
-      <MarkLostButton
-        caseId={caseId}
-        status={status}
-        paymentStatus={paymentStatus}
-        stageKey={stageKey}
-        className="btn btn-ghost"
-      />
-      <MarkRealizadoButton
-        caseId={caseId}
-        status={status}
-        stageKey={stageKey}
-        currentClosingScore={currentClosingScore}
-        currentRegion={currentRegion}
-        currentProductKeys={currentProductKeys}
-        productOptions={productOptions}
-      />
-      <GenerateProposalButton
-        caseId={caseId}
-        canGenerate={canGenerateProposal}
-      />
-      <MarkPropuestaEnviadaButton
-        caseId={caseId}
-        status={status}
-        stageKey={stageKey}
-      />
-      <MarkWonButton caseId={caseId} status={status} stageKey={stageKey} />
-    </>
+    <div className="case-actions" style={{ position: "relative" }}>
+      <button
+        type="button"
+        className="btn btn-ghost case-actions-trigger"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={() => setOpen((v) => !v)}
+      >
+        Acciones{open ? " ▴" : " ▾"}
+      </button>
+      {open ? (
+        <div
+          className="case-actions-menu"
+          role="menu"
+          onClick={() => setOpen(false)}
+        >
+          <MarkNoShowRescheduleButton
+            caseId={caseId}
+            status={status}
+            stageKey={stageKey}
+            hasScheduledAt={hasScheduledAt}
+            className={MENU_ITEM}
+          />
+          <MarkNoShowLostButton
+            caseId={caseId}
+            status={status}
+            stageKey={stageKey}
+            hasScheduledAt={hasScheduledAt}
+            className={MENU_ITEM}
+          />
+          <MarkLostButton
+            caseId={caseId}
+            status={status}
+            paymentStatus={paymentStatus}
+            stageKey={stageKey}
+            className={MENU_ITEM}
+          />
+          <CancelSupersededButton
+            caseId={caseId}
+            status={status}
+            stageKey={stageKey}
+            className={MENU_ITEM}
+          />
+          <CopyCalendlyLinkButton
+            url={calendlyLink}
+            label="Copiar link reagenda"
+            className={MENU_ITEM}
+          />
+          <GenerateProposalButton
+            caseId={caseId}
+            canGenerate={canGenerateProposal}
+            className={MENU_ITEM}
+          />
+        </div>
+      ) : null}
+    </div>
   );
 }

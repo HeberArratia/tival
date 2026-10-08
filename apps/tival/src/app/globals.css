@@ -1136,6 +1136,50 @@ button.view-tab {
   box-shadow: 0 8px 24px rgba(32, 32, 35, 0.1);
 }
 
+.case-actions-trigger {
+  font-size: 0.8rem;
+  padding: 0.35rem 0.65rem;
+}
+
+.case-actions-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.25rem);
+  z-index: 30;
+  min-width: 13.5rem;
+  padding: 0.35rem;
+  border: 1px solid var(--t-line-strong);
+  border-radius: 0.5rem;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(32, 32, 35, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.case-actions-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.65rem;
+  border: 0;
+  border-radius: 0.35rem;
+  background: transparent;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  color: inherit;
+}
+
+.case-actions-menu-item:hover:not(:disabled) {
+  background: rgba(32, 32, 35, 0.05);
+}
+
+.case-actions-menu-item:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .assign-consultant-option {
   display: flex;
   align-items: center;

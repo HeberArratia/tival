@@ -6,6 +6,7 @@ import {
   markDiagnosticoRealizado,
   markLost,
   markNoShow,
+  markNoShowAwaitingReschedule,
   markPaid,
   markPropuestaEnviada,
   markWon,
@@ -282,10 +283,28 @@ export async function POST(
       return NextResponse.json({ ok: true, case: row });
     }
 
+    if (action === "no_show_reschedule") {
+      const row = await markNoShowAwaitingReschedule(id, actor);
+      return NextResponse.json({ ok: true, case: row });
+    }
+
+    if (action === "no_show_lost") {
+      const row = await markLost({
+        caseId: id,
+        reason: "no_asistio",
+        actor,
+      });
+      return NextResponse.json({ ok: true, case: row });
+    }
+
     if (action === "cancel") {
+      const reason =
+        typeof body?.reason === "string" && body.reason.trim()
+          ? body.reason.trim()
+          : "superseded";
       const row = await cancelCase({
         caseId: id,
-        reason: body?.reason ?? "ops_cancelled",
+        reason,
         actor,
       });
       return NextResponse.json({ ok: true, case: row });

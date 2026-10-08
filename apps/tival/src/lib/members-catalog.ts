@@ -119,36 +119,25 @@ export function handoffActionsForCase(input: {
   }
 
   if (paid && open && stage === "realizado") {
-    if (!input.assignedConsultantId) {
-      ops.push("assign_consultant");
-    }
     consultor.push("mark_propuesta");
   }
 
   if (paid && open && stage === "propuesta_enviada") {
-    if (!input.assignedConsultantId) {
-      ops.push("assign_consultant");
-    }
     consultor.push("mark_won");
     consultor.push("mark_lost_no_compra");
   }
 
-  const postPayStages = [
-    "pagado",
-    "realizado",
-    "propuesta_enviada",
-    "seguimiento",
-  ];
+  /** Warning solo en Diagnóstico pagado (última etapa donde se puede asignar). */
   const needsConsultantWarning =
     paid &&
     open &&
-    !!stage &&
-    postPayStages.includes(stage) &&
+    stage === "pagado" &&
     !input.assignedConsultantId;
 
   return { ops, consultor, needsConsultantWarning };
 }
 
+/** Asignar/cambiar consultor solo en Diagnóstico pagado (no desde realizado). */
 export function canAssignConsultant(input: {
   status: string;
   paymentStatus: string;
@@ -156,11 +145,5 @@ export function canAssignConsultant(input: {
 }): boolean {
   if (EXCEPTION_STATUSES.includes(input.status)) return false;
   if (input.paymentStatus !== "paid") return false;
-  const stage = input.stageKey ?? null;
-  return (
-    stage === "pagado" ||
-    stage === "realizado" ||
-    stage === "propuesta_enviada" ||
-    stage === "seguimiento"
-  );
+  return input.stageKey === "pagado";
 }

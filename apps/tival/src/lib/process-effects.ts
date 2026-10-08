@@ -465,6 +465,11 @@ const EVENT_LABELS: Record<
     kind: "trigger",
     result: "ok",
   },
+  ops_cancelled: {
+    title: "Humano · oportunidad cancelada",
+    kind: "humano",
+    result: "ok",
+  },
   checkout_started: {
     title: "Efecto · checkout iniciado",
     kind: "efecto",
@@ -502,6 +507,11 @@ const EVENT_LABELS: Record<
   },
   no_show_marked: {
     title: "Humano · no-show",
+    kind: "humano",
+    result: "ok",
+  },
+  no_show_awaiting_reschedule: {
+    title: "Humano · no llegó · esperando reagenda",
     kind: "humano",
     result: "ok",
   },
@@ -576,6 +586,8 @@ export function nextActionForCase(input: {
   isConsultoria: boolean;
   assignedConsultantId?: string | null;
   assignedConsultantName?: string | null;
+  awaitingReschedule?: boolean;
+  awaitingRescheduleUntil?: string | null;
 }): NextActionHint | null {
   if (!input.isConsultoria) {
     if (input.stageKey === "calificado") {
@@ -595,7 +607,7 @@ export function nextActionForCase(input: {
   if (input.stageKey === "perdido") {
     return {
       title: "Perdido",
-      body: "Etapa terminal. El motivo (sin pago, no compró, …) queda en la ficha.",
+      body: "Etapa terminal. El motivo (sin pago, no asistió, …) queda en la ficha.",
       tone: "wait",
     };
   }
@@ -605,6 +617,30 @@ export function nextActionForCase(input: {
       title: "Ganado",
       body: "Etapa terminal. Trato cerrado.",
       tone: "wait",
+    };
+  }
+
+  if (input.awaitingReschedule || input.status === "no_show") {
+    const until = input.awaitingRescheduleUntil
+      ? new Date(input.awaitingRescheduleUntil)
+      : null;
+    const untilLabel =
+      until && !Number.isNaN(until.getTime())
+        ? until.toLocaleDateString("es-CL", {
+            day: "numeric",
+            month: "short",
+          })
+        : null;
+    return {
+      title: input.awaitingReschedule
+        ? "Esperando que reagende"
+        : "No-show",
+      body: input.awaitingReschedule
+        ? `Compartí el link de reagenda. Cuando agende, se actualiza esta misma opp.${
+            untilLabel ? ` Chance hasta ${untilLabel}.` : ""
+          } Si no → Perdido / no asistió.`
+        : "Marcá reagendar (chance) o perdido (no asistió).",
+      tone: "warn",
     };
   }
 

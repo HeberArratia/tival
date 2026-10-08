@@ -12,7 +12,7 @@ import { integrationConnections, workspaces } from "../src/db/schema";
 import { scheduleCase } from "../src/lib/cases";
 import { decryptSecret } from "../src/lib/crypto-secrets";
 import { fetchCalendlyScheduledEvent } from "../src/lib/integrations/calendly-api";
-import { scheduleMeetEnrichment } from "../src/lib/integrations/enrich-meet";
+import { scheduleMeetEnrichmentJob } from "../src/inngest/functions/enrich-meet";
 import { touchConnectionEvent } from "../src/lib/integrations/connections";
 
 async function calendlyFetch(apiToken: string, path: string) {
@@ -100,7 +100,9 @@ async function main() {
   });
 
   await touchConnectionEvent(cal.id);
-  scheduleMeetEnrichment(created.id);
+  await scheduleMeetEnrichmentJob(created.id, {
+    calendlyEventUuid: created.calendlyEventUuid,
+  });
 
   console.log("OK case:", created.id);
 }

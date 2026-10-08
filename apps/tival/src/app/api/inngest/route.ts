@@ -1,5 +1,6 @@
 import { serve } from "inngest/next";
 import { inngest } from "@/inngest/client";
+import { enrichMeetArtifacts } from "@/inngest/functions/enrich-meet";
 import { collectPostMeetArtifacts } from "@/inngest/functions/post-meet-collect";
 
 export const runtime = "nodejs";
@@ -10,5 +11,5 @@ export const runtime = "nodejs";
  */
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [collectPostMeetArtifacts],
+  functions: [enrichMeetArtifacts, collectPostMeetArtifacts],
 });

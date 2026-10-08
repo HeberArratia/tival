@@ -1,9 +1,12 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import {
   cancelCase,
+  findCaseAwaitingReschedule,
+  mergeScheduleIntoCase,
   rescheduleCase,
   scheduleCase,
 } from "@/lib/cases";
+import { isTivalReagendaTracking } from "@/lib/calendly-booking-link";
 import {
   findConnectionByWebhookToken,
   touchConnectionEvent,
@@ -12,7 +15,7 @@ import {
   normalizeCalendlyBody,
   parseCalendlyInviteePayload,
 } from "@/lib/integrations/calendly-parse";
-import { scheduleMeetEnrichment } from "@/lib/integrations/enrich-meet";
+import { scheduleMeetEnrichmentJob } from "@/inngest/functions/enrich-meet";
 import { getWorkspacePack } from "@/lib/workspace/registry";
 
 function extractUuid(uriOrId?: string | null) {
@@ -173,6 +176,7 @@ export async function handleCalendlyWebhook(input: {
       const newUuid =
         extractUuid(newInvitee?.event ?? eventUri) ?? eventUuid;
 
+      const q = parsed.qualification;
       const result = await rescheduleCase({
         workspaceId: workspace.id,
         workspaceSlug: workspace.slug,
@@ -183,14 +187,57 @@ export async function handleCalendlyWebhook(input: {
         meetUrl: parsed.meetUrl,
         contactName: parsed.name,
         contactEmail: parsed.email,
+        rescheduleUrl:
+          typeof q.reschedule_url === "string" ? q.reschedule_url : null,
+        cancelUrl: typeof q.cancel_url === "string" ? q.cancel_url : null,
       });
       await touchConnectionEvent(connection.id);
-      scheduleMeetEnrichment(result.id);
+      await scheduleMeetEnrichmentJob(result.id, {
+        calendlyEventUuid: newUuid,
+      });
       return {
         status: 200 as const,
         body: {
           ok: true,
           action: "rescheduled",
+          caseId: result.id,
+          workspace: workspace.slug,
+        },
+      };
+    }
+
+    const tracking = parsed.tracking as {
+      utm_campaign?: string | null;
+      utm_content?: string | null;
+    };
+    const reagendaTrack = isTivalReagendaTracking(tracking);
+    const mergeTarget = await findCaseAwaitingReschedule({
+      workspaceId: workspace.id,
+      caseId: reagendaTrack.caseId,
+      email: parsed.email,
+    });
+
+    if (mergeTarget) {
+      const q = parsed.qualification;
+      const result = await mergeScheduleIntoCase({
+        caseId: mergeTarget.id,
+        calendlyEventUuid: eventUuid,
+        calendlyEventUri: eventUri,
+        scheduledAt: parsed.scheduledAt,
+        meetUrl: parsed.meetUrl,
+        rescheduleUrl:
+          typeof q.reschedule_url === "string" ? q.reschedule_url : null,
+        cancelUrl: typeof q.cancel_url === "string" ? q.cancel_url : null,
+      });
+      await touchConnectionEvent(connection.id);
+      await scheduleMeetEnrichmentJob(result.id, {
+        calendlyEventUuid: eventUuid,
+      });
+      return {
+        status: 200 as const,
+        body: {
+          ok: true,
+          action: "rescheduled_merge",
           caseId: result.id,
           workspace: workspace.slug,
         },
@@ -214,7 +261,9 @@ export async function handleCalendlyWebhook(input: {
     });
 
     await touchConnectionEvent(connection.id);
-    scheduleMeetEnrichment(result.id);
+    await scheduleMeetEnrichmentJob(result.id, {
+      calendlyEventUuid: eventUuid,
+    });
     return {
       status: 200 as const,
       body: {

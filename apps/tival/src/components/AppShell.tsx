@@ -165,7 +165,17 @@ export function StatusPill({ status }: { status: string }) {
     no_show: "pill-wait",
     rescheduled_away: "pill-warn",
   };
-  return <span className={`pill ${map[status] ?? "pill"}`}>{status}</span>;
+  const labels: Record<string, string> = {
+    open: "open",
+    cancelled: "cancelado",
+    no_show: "no-show",
+    rescheduled_away: "reagendada",
+  };
+  return (
+    <span className={`pill ${map[status] ?? "pill"}`}>
+      {labels[status] ?? status}
+    </span>
+  );
 }
 
 export function LostReasonPill({

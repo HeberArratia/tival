@@ -61,7 +61,7 @@ Credenciales viven **por workspace** en `integration_connections` (cifradas), no
 | `INTEGRATIONS_ENCRYPTION_KEY` | Llave de plataforma para cifrar secrets at-rest |
 | `GOOGLE_CLIENT_ID` / `SECRET` | App OAuth (tokens por workspace en DB) |
 
-Tras `invitee.created` / reschedule, un enrichment async (no bloquea el webhook) hace GET Calendly → Calendar y guarda `meet_url` real + `meet_code` + `google_calendar_event_id`. Requiere PAT Calendly en la conexión (o `TEST_TIVAL_CALENDLY` en local) y Google OAuth con Calendar.
+Tras `invitee.created` / reschedule, Inngest corre `case/meet.enrich` (Calendly → Calendar) y guarda `meet_url` real + `meet_code` + `google_calendar_event_id`. En local (sin `INNGEST_ENABLED=1`) el enrich corre inline. Requiere PAT Calendly + Google OAuth Calendar.
 
 ```bash
 npx tsx scripts/enrich-meet.ts --calendly=<scheduled_event_uuid>
@@ -70,11 +70,19 @@ npx tsx scripts/enrich-meet.ts --case=<case_uuid>
 
 Al pagar (`markPaid` → etapa pagado) se crea la carpeta Drive bajo `config.rootFolderId` y se guarda `drive_folder_id` en el case.
 
-### Post-meet (Inngest)
+### Inngest (Meet enrich + post-meet)
 
-Tras enrich Meet y/o crear carpeta Drive se encola `case/post-meet.collect`. La function espera ~**2 h** desde `scheduledAt` (inicio reunión; override `POST_MEET_LOOK_AFTER_MINUTES`), hace poll a Meet API y mueve Notas/recording/transcript a la carpeta del case. Estado en `qualification.post_meet`.
+| Evento | Qué |
+|--------|-----|
+| `case/meet.enrich` | Meet real post-agenda (reemplaza fire-and-forget del webhook) |
+| `case/post-meet.collect` | Tras la reunión: poll Meet API → mueve Notas/recording a Drive |
 
-Por defecto **solo encola** si `NEXT_PUBLIC_TIVAL_ENV=production` (evita duplicar jobs local+prod con DB compartida). En local, para probar el flow completo:
+Post-meet espera ~**2 h** desde `scheduledAt` (override `POST_MEET_LOOK_AFTER_MINUTES`). Estado en `qualification.post_meet`.
+
+Por defecto **solo encola** si `NEXT_PUBLIC_TIVAL_ENV=production` (evita duplicar jobs local+prod con DB compartida). En local:
+
+- Sin flag: enrich Meet corre **inline** (sigue funcionando); post-meet no se encola.
+- Con flag: flow completo vía Inngest Dev Server:
 
 ```bash
 # .env.local: INNGEST_ENABLED=1
@@ -132,9 +140,11 @@ Cada ejecución de `fake:calendly` genera nombre, email, teléfono, RUT y proyec
 | `current_stage_id` | lead → pago → … | Dónde está en el playbook |
 | `status` | `open` · `cancelled` · `no_show` · `rescheduled_away` | Excepciones Calendly (fuera del canvas). Cierre comercial = etapa ganado/perdido |
 | `payment_status` | `none` · `pending` · `paid` | Sub-estado de cobro |
-| `lost_reason` | `no_pago` · `no_compra` · … | Motivo si etapa = Perdido |
+| `lost_reason` | `no_pago` · `no_asistio` · `no_compra` · … | Motivo si etapa = Perdido |
 
 Cierre ganado/perdido = **etapa** (`ganado` / `perdido`), no status.
+
+**No-show / reagenda:** `No llegó · reagendar` pone `status=no_show` + `qualification.awaiting_reschedule` (TTL 14d). El link prefildado lleva `utm_campaign=tival_reagenda` + `utm_content=<caseId>`; el webhook mergea solo fecha/Meet/UUID al mismo case. `No llegó · perdido` → etapa Perdido + `no_asistio`.
 
 ## Nav
 

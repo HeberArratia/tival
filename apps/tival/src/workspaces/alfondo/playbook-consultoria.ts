@@ -76,7 +76,8 @@ export const ALFONDO_CONSULTORIA_STAGES: ConsultoriaStageDef[] = [
   {
     key: "perdido",
     name: "Perdido",
-    description: "Cierre no ganado — motivo en lost_reason (no_pago, no_compra, …)",
+    description:
+      "Cierre no ganado — motivo en lost_reason (no_pago, no_asistio, no_compra, …)",
     sortOrder: 7,
     requiresPayment: false,
     requiresHuman: false,

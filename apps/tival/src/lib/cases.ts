@@ -3,6 +3,7 @@ import { getDb } from "@/db";
 import {
   caseEvents,
   cases,
+  contacts,
   playbookStages,
   playbooks,
   workspaces,
@@ -28,11 +29,18 @@ import {
   isContactLinkedToCompany,
   linkContactCompany,
   loadIdentityMaps,
+  normalizeEmail,
   resolveCompany,
   resolveContact,
   unlinkContactCompany,
   updateCompanyFields,
 } from "@/lib/identity";
+import {
+  buildAwaitingRescheduleState,
+  clearAwaitingReschedule,
+  isAwaitingRescheduleActive,
+  withAwaitingReschedule,
+} from "@/lib/awaiting-reschedule";
 import { isLostReason, type LostReason } from "@/lib/lost-reasons";
 import {
   ensureMemberIsConsultor,
@@ -306,6 +314,9 @@ export async function rescheduleCase(input: {
   meetUrl?: string | null;
   contactName?: string | null;
   contactEmail?: string | null;
+  /** URLs Calendly del invitee nuevo (no pisa el resto de qualification). */
+  rescheduleUrl?: string | null;
+  cancelUrl?: string | null;
   workspaceId?: string;
   workspaceSlug?: string;
 }): Promise<CaseRow> {
@@ -350,9 +361,15 @@ export async function rescheduleCase(input: {
     contactId = contact.id;
   }
 
+  const q = { ...(current.qualification ?? {}) } as Record<string, unknown>;
+  if (input.rescheduleUrl) q.reschedule_url = input.rescheduleUrl;
+  if (input.cancelUrl) q.cancel_url = input.cancelUrl;
+  delete q.awaiting_reschedule;
+
   const [updated] = await db
     .update(cases)
     .set({
+      status: "open",
       calendlyEventUuid: input.newCalendlyEventUuid,
       calendlyEventUri: input.calendlyEventUri ?? current.calendlyEventUri,
       scheduledAt: input.scheduledAt ?? current.scheduledAt,
@@ -361,6 +378,7 @@ export async function rescheduleCase(input: {
       meetCode: null,
       googleCalendarEventId: null,
       contactId,
+      qualification: q,
       updatedAt: new Date(),
     })
     .where(eq(cases.id, current.id))
@@ -372,6 +390,118 @@ export async function rescheduleCase(input: {
   });
 
   return updated;
+}
+
+/**
+ * Post no-show: merge de un invitee.created nuevo al case existente.
+ * Solo agenda (UUID/fecha/Meet/URLs). No pisa RUT ni qualification de negocio.
+ */
+export async function mergeScheduleIntoCase(input: {
+  caseId: string;
+  calendlyEventUuid: string;
+  calendlyEventUri?: string | null;
+  scheduledAt?: Date | null;
+  meetUrl?: string | null;
+  rescheduleUrl?: string | null;
+  cancelUrl?: string | null;
+  actor?: string;
+}): Promise<CaseRow> {
+  const db = await getDb();
+  const [current] = await db
+    .select()
+    .from(cases)
+    .where(eq(cases.id, input.caseId))
+    .limit(1);
+  if (!current) throw new Error("Case not found");
+
+  const q = clearAwaitingReschedule(current.qualification);
+  if (input.rescheduleUrl) q.reschedule_url = input.rescheduleUrl;
+  if (input.cancelUrl) q.cancel_url = input.cancelUrl;
+
+  const previousUuid = current.calendlyEventUuid;
+
+  const [updated] = await db
+    .update(cases)
+    .set({
+      status: "open",
+      calendlyEventUuid: input.calendlyEventUuid,
+      calendlyEventUri: input.calendlyEventUri ?? current.calendlyEventUri,
+      scheduledAt: input.scheduledAt ?? current.scheduledAt,
+      meetUrl: input.meetUrl ?? current.meetUrl,
+      meetCode: null,
+      googleCalendarEventId: null,
+      qualification: q,
+      updatedAt: new Date(),
+    })
+    .where(eq(cases.id, current.id))
+    .returning();
+
+  await appendEvent(
+    updated.id,
+    "calendly_rescheduled",
+    {
+      previousCalendlyEventUuid: previousUuid,
+      newCalendlyEventUuid: input.calendlyEventUuid,
+      merge: "awaiting_reschedule",
+    },
+    input.actor ?? "calendly"
+  );
+
+  return updated;
+}
+
+/** Busca case vivo esperando reagenda (utm caseId o email + flag). */
+export async function findCaseAwaitingReschedule(input: {
+  workspaceId: string;
+  caseId?: string | null;
+  email?: string | null;
+}): Promise<CaseRow | null> {
+  const db = await getDb();
+
+  if (input.caseId) {
+    const [byId] = await db
+      .select()
+      .from(cases)
+      .where(
+        and(
+          eq(cases.id, input.caseId),
+          eq(cases.workspaceId, input.workspaceId)
+        )
+      )
+      .limit(1);
+    if (byId && isAwaitingRescheduleActive(byId.qualification)) {
+      return byId;
+    }
+  }
+
+  const email = normalizeEmail(input.email);
+  if (!email) return null;
+
+  const [contact] = await db
+    .select()
+    .from(contacts)
+    .where(
+      and(eq(contacts.workspaceId, input.workspaceId), eq(contacts.email, email))
+    )
+    .limit(1);
+  if (!contact) return null;
+
+  const rows = await db
+    .select()
+    .from(cases)
+    .where(
+      and(
+        eq(cases.workspaceId, input.workspaceId),
+        eq(cases.contactId, contact.id)
+      )
+    )
+    .orderBy(desc(cases.updatedAt));
+
+  const candidates = rows.filter((r) =>
+    isAwaitingRescheduleActive(r.qualification)
+  );
+  if (candidates.length === 1) return candidates[0]!;
+  return null;
 }
 
 export async function cancelCase(input: {
@@ -398,12 +528,17 @@ export async function cancelCase(input: {
         .limit(1);
 
   if (!current) throw new Error("Case not found");
+  if (current.status === "cancelled") return current;
+
+  const actor = input.actor ?? "sistema";
+  const fromOps = actor !== "calendly" && actor !== "sistema";
 
   const [updated] = await db
     .update(cases)
     .set({
       status: "cancelled",
       cancelReason: input.reason,
+      qualification: clearAwaitingReschedule(current.qualification),
       updatedAt: new Date(),
     })
     .where(eq(cases.id, current.id))
@@ -411,9 +546,9 @@ export async function cancelCase(input: {
 
   await appendEvent(
     updated.id,
-    "calendly_canceled",
+    fromOps ? "ops_cancelled" : "calendly_canceled",
     { reason: input.reason },
-    input.actor ?? "sistema"
+    actor
   );
 
   return updated;
@@ -554,7 +689,45 @@ export async function markNoShow(caseId: string, actor = "ops") {
   return updated;
 }
 
-/** Terminal: etapa Perdido + lost_reason. Status sigue open (cierre = etapa). */
+/**
+ * No llegó · reagendar: status no_show + flag awaiting_reschedule (TTL).
+ * La etapa (lead/pagado) no cambia.
+ */
+export async function markNoShowAwaitingReschedule(
+  caseId: string,
+  actor = "ops"
+): Promise<CaseRow> {
+  const db = await getDb();
+  const [current] = await db
+    .select()
+    .from(cases)
+    .where(eq(cases.id, caseId))
+    .limit(1);
+  if (!current) throw new Error("Case not found");
+
+  const awaiting = buildAwaitingRescheduleState();
+  const qualification = withAwaitingReschedule(current.qualification, awaiting);
+
+  const [updated] = await db
+    .update(cases)
+    .set({
+      status: "no_show",
+      qualification,
+      updatedAt: new Date(),
+    })
+    .where(eq(cases.id, caseId))
+    .returning();
+
+  await appendEvent(
+    updated.id,
+    "no_show_awaiting_reschedule",
+    { until: awaiting.until, startedAt: awaiting.startedAt },
+    actor
+  );
+  return updated;
+}
+
+/** Terminal: etapa Perdido + lost_reason. Status open (cierre = etapa). */
 export async function markLost(input: {
   caseId: string;
   reason?: LostReason | string;
@@ -584,8 +757,10 @@ export async function markLost(input: {
   const [updated] = await db
     .update(cases)
     .set({
+      status: "open",
       currentStageId: perdidoStage.id,
       lostReason: reason,
+      qualification: clearAwaitingReschedule(current.qualification),
       updatedAt: new Date(),
     })
     .where(eq(cases.id, current.id))
@@ -1071,8 +1246,8 @@ export async function setProducts(input: {
 }
 
 /**
- * Asigna consultor a la oportunidad (Diagnóstico pagado en adelante).
- * No bloquea otras acciones si falta — solo warning en UI.
+ * Asigna consultor solo en Diagnóstico pagado.
+ * Bloqueado desde Diagnóstico realizado en adelante.
  */
 export async function assignConsultant(input: {
   caseId: string;
@@ -1087,6 +1262,10 @@ export async function assignConsultant(input: {
   if (isFakeDataEnabled()) {
     const row = FAKE_CASES.find((c) => c.id === input.caseId);
     if (!row) throw new Error("Case not found");
+    const stage = FAKE_STAGES.find((s) => s.id === row.currentStageId);
+    if (stage && stage.key !== "pagado") {
+      throw new Error("Cannot assign consultant after diagnóstico realizado");
+    }
     row.assignedConsultantId = input.consultantId;
     row.updatedAt = new Date();
     return row;
@@ -1099,6 +1278,14 @@ export async function assignConsultant(input: {
     .where(eq(cases.id, input.caseId))
     .limit(1);
   if (!current) throw new Error("Case not found");
+
+  const { stages } = await resolvePlaybookContext({
+    workspaceId: current.workspaceId,
+  });
+  const stage = stages.find((s) => s.id === current.currentStageId);
+  if (stage && stage.key !== "pagado") {
+    throw new Error("Cannot assign consultant after diagnóstico realizado");
+  }
 
   const actor = input.actor ?? "ops";
 

@@ -12,11 +12,17 @@ import {
   AssignConsultantButton,
   CaseActions,
   ConfirmTransferButton,
+  CopyCalendlyLinkButton,
   MarkLostButton,
   MarkPropuestaEnviadaButton,
   MarkRealizadoButton,
   MarkWonButton,
 } from "@/components/CaseActions";
+import {
+  isAwaitingRescheduleActive,
+  readAwaitingReschedule,
+} from "@/lib/awaiting-reschedule";
+import { buildCalendlyBookingLink } from "@/lib/calendly-booking-link";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import {
   EventTimeline,
@@ -130,6 +136,44 @@ export default async function IniciativaOportunidadPage({
     name: m.name,
   }));
   const assignedConsultant = memberById(c.assignedConsultantId);
+  const awaiting = readAwaitingReschedule(qualification);
+  const awaitingActive = isAwaitingRescheduleActive(qualification);
+  const calendlyBase =
+    typeof ini?.config?.calendlyUrl === "string"
+      ? ini.config.calendlyUrl
+      : null;
+  const rescheduleUrl =
+    typeof qualification.reschedule_url === "string"
+      ? qualification.reschedule_url
+      : null;
+  const meetingPassed = c.scheduledAt
+    ? c.scheduledAt.getTime() < Date.now()
+    : false;
+  const prefilledReagendaLink =
+    calendlyBase && (awaitingActive || c.status === "no_show")
+      ? buildCalendlyBookingLink(calendlyBase, {
+          name: c.contact?.name,
+          email: c.contact?.email,
+          phone: c.contact?.primaryPhone ?? phones[0]?.phone,
+          mensaje:
+            typeof qualification.mensaje_usuario === "string"
+              ? qualification.mensaje_usuario
+              : null,
+          rut:
+            typeof qualification.rut_facturacion === "string"
+              ? qualification.rut_facturacion
+              : null,
+          caseId: c.id,
+          reagenda: true,
+        })
+      : null;
+  const nativeRescheduleLink =
+    rescheduleUrl && !meetingPassed && c.status === "open"
+      ? rescheduleUrl
+      : null;
+  const calendlyLink = awaitingActive
+    ? prefilledReagendaLink
+    : nativeRescheduleLink ?? prefilledReagendaLink;
   const next = nextActionForCase({
     status: c.status,
     paymentStatus: c.paymentStatus,
@@ -138,6 +182,8 @@ export default async function IniciativaOportunidadPage({
     isConsultoria,
     assignedConsultantId: c.assignedConsultantId,
     assignedConsultantName: assignedConsultant?.name ?? null,
+    awaitingReschedule: awaitingActive,
+    awaitingRescheduleUntil: awaiting?.until ?? null,
   });
   const shellActive =
     ini?.slug === "diagnostico" ? "diagnostico" : "iniciativas";
@@ -177,12 +223,8 @@ export default async function IniciativaOportunidadPage({
               status={c.status}
               paymentStatus={c.paymentStatus}
               stageKey={currentStage?.key}
-              currentClosingScore={currentClosingScore}
-              currentRegion={currentRegion}
-              currentProductKeys={currentProductKeys}
-              productOptions={productOptions}
-              currentConsultantId={c.assignedConsultantId}
-              consultants={consultants}
+              hasScheduledAt={Boolean(c.scheduledAt)}
+              calendlyLink={calendlyLink}
               canGenerateProposal={canGenerateProposal}
             />
           ) : (
@@ -202,6 +244,11 @@ export default async function IniciativaOportunidadPage({
           <SegmentPill segment={seg} />{" "}
           {["cancelled", "no_show", "rescheduled_away"].includes(c.status) ? (
             <StatusPill status={c.status} />
+          ) : null}{" "}
+          {awaitingActive ? (
+            <span className="pill pill-warn" title={awaiting?.until ?? undefined}>
+              esperando reagenda
+            </span>
           ) : null}{" "}
           {c.paymentStatus !== "paid" && c.status === "open" ? (
             <span className="pill pill-warn">sin pago</span>
@@ -245,31 +292,70 @@ export default async function IniciativaOportunidadPage({
           </div>
         ) : null}
 
-        {next ? (
+        {c.status === "cancelled" ? (
+          <div className="panel" style={{ marginBottom: "1rem" }}>
+            <p className="panel-kicker">Cierre</p>
+            <h3>Cancelada</h3>
+            <p className="lede" style={{ marginTop: "0.35rem" }}>
+              Motivo:{" "}
+              <strong>
+                {c.cancelReason === "superseded"
+                  ? "Duplicada · superseded (otra opp vigente)"
+                  : c.cancelReason ?? "Sin motivo"}
+              </strong>
+            </p>
+          </div>
+        ) : null}
+
+        {awaitingActive ? (
+          <div className="panel" style={{ marginBottom: "1rem" }}>
+            <p className="panel-kicker">Reagenda</p>
+            <h3>Esperando reagenda</h3>
+            <p className="lede" style={{ marginTop: "0.35rem" }}>
+              No asistió al slot anterior. Compartí el link prefildado; al
+              agendar se actualiza esta misma oportunidad
+              {awaiting?.until
+                ? ` · chance hasta ${new Date(awaiting.until).toLocaleDateString(
+                    "es-CL",
+                    { day: "numeric", month: "short", year: "numeric" }
+                  )}`
+                : ""}
+              .
+            </p>
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "0.5rem",
+                marginTop: "0.75rem",
+              }}
+            >
+              <CopyCalendlyLinkButton
+                url={calendlyLink}
+                label="Copiar link reagenda"
+                className="btn btn-primary"
+              />
+            </div>
+          </div>
+        ) : null}
+
+        {next && !awaitingActive ? (
           <NextActionPanel
             hint={next}
             actions={
               isConsultoria &&
               currentStage?.key !== "perdido" &&
-              currentStage?.key !== "ganado" ? (
+              currentStage?.key !== "ganado" &&
+              c.status !== "no_show" ? (
                 <>
                   {c.paymentStatus !== "paid" ? (
-                    <>
-                      <ConfirmTransferButton
-                        caseId={c.id}
-                        status={c.status}
-                        paymentStatus={c.paymentStatus}
-                        stageKey={currentStage?.key}
-                      />
-                      <MarkLostButton
-                        caseId={c.id}
-                        status={c.status}
-                        paymentStatus={c.paymentStatus}
-                        stageKey={currentStage?.key}
-                        className="btn"
-                        reason="no_pago"
-                      />
-                    </>
+                    <ConfirmTransferButton
+                      caseId={c.id}
+                      status={c.status}
+                      paymentStatus={c.paymentStatus}
+                      stageKey={currentStage?.key}
+                      className="btn btn-primary"
+                    />
                   ) : null}
                   <AssignConsultantButton
                     caseId={c.id}
@@ -278,6 +364,7 @@ export default async function IniciativaOportunidadPage({
                     stageKey={currentStage?.key}
                     currentConsultantId={c.assignedConsultantId}
                     consultants={consultants}
+                    className="btn btn-primary"
                   />
                   {currentStage?.key === "pagado" ? (
                     <MarkRealizadoButton
@@ -309,7 +396,7 @@ export default async function IniciativaOportunidadPage({
                         status={c.status}
                         paymentStatus={c.paymentStatus}
                         stageKey={currentStage.key}
-                        className="btn"
+                        className="btn btn-ghost"
                         reason="no_compra"
                       />
                     </>
