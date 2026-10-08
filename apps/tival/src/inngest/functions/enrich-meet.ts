@@ -18,7 +18,7 @@ export const enrichMeetArtifacts = inngest.createFunction(
     id: "enrich-meet",
     name: "Enrich Meet from Calendly/Calendar",
     retries: 4,
-    concurrency: { limit: 8, key: "event.data.caseId" },
+    concurrency: { limit: 5, key: "event.data.caseId" },
     triggers: [{ event: "case/meet.enrich" }],
   },
   async ({ event, step }) => {
