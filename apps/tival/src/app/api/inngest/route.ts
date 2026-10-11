@@ -1,7 +1,9 @@
 import { serve } from "inngest/next";
 import { inngest } from "@/inngest/client";
 import { enrichMeetArtifacts } from "@/inngest/functions/enrich-meet";
+import { remindMeetingWhatsapp } from "@/inngest/functions/meeting-remind";
 import { collectPostMeetArtifacts } from "@/inngest/functions/post-meet-collect";
+import { notifyRescheduleWhatsappFn } from "@/inngest/functions/reschedule-notify";
 
 export const runtime = "nodejs";
 
@@ -11,5 +13,10 @@ export const runtime = "nodejs";
  */
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [enrichMeetArtifacts, collectPostMeetArtifacts],
+  functions: [
+    enrichMeetArtifacts,
+    collectPostMeetArtifacts,
+    remindMeetingWhatsapp,
+    notifyRescheduleWhatsappFn,
+  ],
 });

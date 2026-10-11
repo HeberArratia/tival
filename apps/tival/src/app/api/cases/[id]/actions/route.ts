@@ -23,6 +23,7 @@ import { isClosingScore } from "@/lib/closing-scores";
 import { isLostReason } from "@/lib/lost-reasons";
 import { isMemberId } from "@/lib/members-catalog";
 import { retryN8nProposal } from "@/lib/integrations/n8n-proposal";
+import { requestPaymentProofWhatsapp } from "@/lib/integrations/kapso-whatsapp";
 
 export const runtime = "nodejs";
 
@@ -51,6 +52,32 @@ export async function POST(
         confirmedBy: actor,
       });
       return NextResponse.json({ ok: true, case: result.case });
+    }
+
+    if (action === "request_payment_whatsapp") {
+      const result = await requestPaymentProofWhatsapp({
+        caseId: id,
+        actor,
+      });
+      if (!result.ok) {
+        const status =
+          result.error === "case_not_found"
+            ? 404
+            : result.error === "kapso_not_configured" ||
+                result.error === "kapso_api_key_missing" ||
+                result.error === "kapso_phone_number_id_missing"
+              ? 503
+              : 400;
+        return NextResponse.json(
+          { ok: false, error: result.error },
+          { status }
+        );
+      }
+      return NextResponse.json({
+        ok: true,
+        to: result.to,
+        wamid: result.wamid,
+      });
     }
 
     if (action === "assign_consultant") {

@@ -17,6 +17,7 @@ import {
   MarkPropuestaEnviadaButton,
   MarkRealizadoButton,
   MarkWonButton,
+  RequestPaymentWhatsappButton,
 } from "@/components/CaseActions";
 import {
   isAwaitingRescheduleActive,
@@ -333,13 +334,26 @@ export default async function IniciativaOportunidadPage({
               c.status !== "no_show" ? (
                 <>
                   {c.paymentStatus !== "paid" ? (
-                    <ConfirmTransferButton
-                      caseId={c.id}
-                      status={c.status}
-                      paymentStatus={c.paymentStatus}
-                      stageKey={currentStage?.key}
-                      className="btn btn-primary"
-                    />
+                    <>
+                      <RequestPaymentWhatsappButton
+                        caseId={c.id}
+                        status={c.status}
+                        paymentStatus={c.paymentStatus}
+                        stageKey={currentStage?.key}
+                        hasPhone={Boolean(
+                          c.contact?.primaryPhone ?? phones[0]?.phone
+                        )}
+                        hasScheduledAt={Boolean(c.scheduledAt)}
+                        className="btn btn-primary"
+                      />
+                      <ConfirmTransferButton
+                        caseId={c.id}
+                        status={c.status}
+                        paymentStatus={c.paymentStatus}
+                        stageKey={currentStage?.key}
+                        className="btn"
+                      />
+                    </>
                   ) : null}
                   <AssignConsultantButton
                     caseId={c.id}

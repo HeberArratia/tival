@@ -193,6 +193,7 @@ export async function handleCalendlyWebhook(input: {
       await touchConnectionEvent(connection.id);
       await scheduleMeetEnrichmentJob(result.id, {
         calendlyEventUuid: eventUuid,
+        reason: "reschedule",
       });
       return {
         status: 200 as const,
@@ -231,6 +232,7 @@ export async function handleCalendlyWebhook(input: {
       await touchConnectionEvent(connection.id);
       await scheduleMeetEnrichmentJob(result.id, {
         calendlyEventUuid: eventUuid,
+        reason: "reschedule",
       });
       return {
         status: 200 as const,
@@ -262,6 +264,7 @@ export async function handleCalendlyWebhook(input: {
     await touchConnectionEvent(connection.id);
     await scheduleMeetEnrichmentJob(result.id, {
       calendlyEventUuid: eventUuid,
+      reason: "schedule",
     });
     return {
       status: 200 as const,

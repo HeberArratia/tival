@@ -57,6 +57,12 @@ const RECIPE_BY_STAGE_KEY: Record<string, StageRecipe> = {
         status: "live",
       },
       {
+        id: "whatsapp-payment-request",
+        label: "Pedir comprobante por WhatsApp (Moira)",
+        via: "Kapso",
+        status: "live",
+      },
+      {
         id: "resolve-segment",
         label: "Resolver segmento (S1–S3)",
         via: "Dominio",
@@ -110,6 +116,18 @@ const RECIPE_BY_STAGE_KEY: Record<string, StageRecipe> = {
         id: "slack-paid",
         label: "Avisar diagnóstico confirmado",
         via: "n8n · Slack",
+        status: "live",
+      },
+      {
+        id: "whatsapp-paid",
+        label: "WhatsApp · pago confirmado + Meet",
+        via: "Kapso",
+        status: "live",
+      },
+      {
+        id: "whatsapp-remind",
+        label: "WhatsApp · recordatorio T-1h",
+        via: "Kapso · Inngest",
         status: "live",
       },
       {
@@ -186,6 +204,12 @@ const RECIPE_BY_STAGE_KEY: Record<string, StageRecipe> = {
         id: "mail",
         label: "Correo de propuesta al consultor",
         via: "n8n · Gmail",
+        status: "live",
+      },
+      {
+        id: "whatsapp-propuesta",
+        label: "WhatsApp · material enviado al correo",
+        via: "Kapso",
         status: "live",
       },
     ],
@@ -491,6 +515,76 @@ const EVENT_LABELS: Record<
     kind: "humano",
     result: "ok",
   },
+  whatsapp_payment_request_sent: {
+    title: "Efecto · WhatsApp pedido de pago (Moira)",
+    kind: "efecto",
+    result: "ok",
+  },
+  whatsapp_payment_request_failed: {
+    title: "Efecto · WhatsApp pedido de pago falló",
+    kind: "efecto",
+    result: "fail",
+  },
+  whatsapp_payment_confirmed_sent: {
+    title: "Efecto · WhatsApp pago confirmado + Meet",
+    kind: "efecto",
+    result: "ok",
+  },
+  whatsapp_payment_confirmed_failed: {
+    title: "Efecto · WhatsApp pago confirmado falló",
+    kind: "efecto",
+    result: "fail",
+  },
+  whatsapp_payment_confirmed_skipped: {
+    title: "Efecto · WhatsApp pago confirmado omitido",
+    kind: "efecto",
+    result: "info",
+  },
+  whatsapp_propuesta_enviada_sent: {
+    title: "Efecto · WhatsApp propuesta enviada (correo)",
+    kind: "efecto",
+    result: "ok",
+  },
+  whatsapp_propuesta_enviada_failed: {
+    title: "Efecto · WhatsApp propuesta enviada falló",
+    kind: "efecto",
+    result: "fail",
+  },
+  whatsapp_propuesta_enviada_skipped: {
+    title: "Efecto · WhatsApp propuesta enviada omitido",
+    kind: "efecto",
+    result: "info",
+  },
+  whatsapp_meeting_remind_sent: {
+    title: "Efecto · WhatsApp recordatorio reunión T-1h",
+    kind: "efecto",
+    result: "ok",
+  },
+  whatsapp_meeting_remind_failed: {
+    title: "Efecto · WhatsApp recordatorio falló",
+    kind: "efecto",
+    result: "fail",
+  },
+  whatsapp_meeting_remind_skipped: {
+    title: "Efecto · WhatsApp recordatorio omitido",
+    kind: "efecto",
+    result: "info",
+  },
+  whatsapp_reschedule_sent: {
+    title: "Efecto · WhatsApp reagenda confirmada",
+    kind: "efecto",
+    result: "ok",
+  },
+  whatsapp_reschedule_failed: {
+    title: "Efecto · WhatsApp reagenda falló",
+    kind: "efecto",
+    result: "fail",
+  },
+  whatsapp_reschedule_skipped: {
+    title: "Efecto · WhatsApp reagenda omitido",
+    kind: "efecto",
+    result: "info",
+  },
   drive_folder_created: {
     title: "Efecto · carpeta Drive creada",
     kind: "efecto",
@@ -667,8 +761,8 @@ export function nextActionForCase(input: {
 
   if (input.paymentStatus !== "paid") {
     return {
-      title: "Confirmar pago o marcar perdido",
-      body: "Ops: transfer recibida → confirmar. Si no va a pagar → Perdido. MP llega solo vía Alfondo.",
+      title: "Pedir pago por WhatsApp o confirmar",
+      body: "Ops: WhatsApp (Moira) pide el comprobante. Si ya llegó la transfer → confirmar. Si no va a pagar → Perdido. MP llega solo vía Alfondo.",
       tone: "ops",
     };
   }

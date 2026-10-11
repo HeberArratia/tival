@@ -5,6 +5,7 @@ import { integrationConnections } from "@/db/schema";
 import {
   updateCalendlyConnection,
   updateDriveConnection,
+  updateKapsoConnection,
 } from "@/lib/integrations/connections";
 import { defaultWorkspaceSlug } from "@/lib/workspace/registry";
 
@@ -40,6 +41,20 @@ export async function PATCH(
         connectionId: id,
         workspaceSlug,
         config: body.config,
+        markConnected: body.markConnected,
+      });
+      return NextResponse.json({ ok: true, connection });
+    }
+
+    if (row.provider === "kapso") {
+      const connection = await updateKapsoConnection({
+        connectionId: id,
+        workspaceSlug,
+        apiKey: body.apiKey === undefined ? undefined : body.apiKey || null,
+        phoneNumberId:
+          body.phoneNumberId === undefined
+            ? undefined
+            : body.phoneNumberId || null,
         markConnected: body.markConnected,
       });
       return NextResponse.json({ ok: true, connection });

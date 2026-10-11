@@ -35,6 +35,22 @@ export function canConfirmTransfer(input: {
   return input.paymentStatus !== "paid";
 }
 
+/** Pedir comprobante por WhatsApp (Moira) — lead / sin pago. */
+export function canRequestPaymentWhatsapp(input: {
+  status: string;
+  paymentStatus: string;
+  stageKey?: string;
+  hasPhone?: boolean;
+  hasScheduledAt?: boolean;
+}) {
+  if (EXCEPTION_STATUSES.includes(input.status)) return false;
+  if (isTerminalStageKey(input.stageKey)) return false;
+  if (input.paymentStatus === "paid") return false;
+  if (!input.hasPhone) return false;
+  if (!input.hasScheduledAt) return false;
+  return input.stageKey === "lead" || !input.stageKey;
+}
+
 export function canMarkLost(input: {
   status: string;
   paymentStatus: string;
@@ -299,6 +315,99 @@ export function ConfirmTransferButton({
     >
       {loading ? "…" : "Confirmar transferencia"}
     </button>
+  );
+}
+
+const WHATSAPP_ERROR_LABEL: Record<string, string> = {
+  missing_phone: "Sin teléfono en el contacto",
+  invalid_phone: "Teléfono inválido",
+  missing_scheduled_at: "Sin fecha de reunión",
+  missing_contact: "Sin contacto",
+  already_paid: "Ya está pagado",
+  template_not_ready: "Template WhatsApp aún no aprobado en Meta",
+  kapso_not_configured:
+    "Kapso no configurado (Integraciones → Kapso, o KAPSO_* en env)",
+  kapso_api_key_missing: "Falta API key de Kapso",
+  kapso_phone_number_id_missing: "Falta phone number ID de Kapso",
+  kapso_send_failed: "Kapso no pudo enviar el mensaje",
+};
+
+/** Pedir comprobante de pago por WhatsApp (template Moira). */
+export function RequestPaymentWhatsappButton({
+  caseId,
+  status,
+  paymentStatus,
+  stageKey,
+  hasPhone = false,
+  hasScheduledAt = false,
+  className = "btn",
+  stopPropagation = false,
+}: {
+  caseId: string;
+  status: string;
+  paymentStatus: string;
+  stageKey?: string;
+  hasPhone?: boolean;
+  hasScheduledAt?: boolean;
+  className?: string;
+  stopPropagation?: boolean;
+}) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (
+    !canRequestPaymentWhatsapp({
+      status,
+      paymentStatus,
+      stageKey,
+      hasPhone,
+      hasScheduledAt,
+    })
+  ) {
+    return null;
+  }
+
+  async function run(e: MouseEvent) {
+    if (stopPropagation) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await postAction(caseId, "request_payment_whatsapp");
+      if (!res.ok) {
+        setError(
+          WHATSAPP_ERROR_LABEL[res.error ?? ""] ??
+            res.error ??
+            "No se pudo enviar"
+        );
+        return;
+      }
+      router.refresh();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <span style={{ display: "inline-flex", flexDirection: "column", gap: 4 }}>
+      <button
+        type="button"
+        className={className}
+        disabled={loading}
+        onClick={run}
+        title="Envía el mensaje de Moira pidiendo el comprobante de pago"
+      >
+        {loading ? "…" : "Pedir pago por WhatsApp"}
+      </button>
+      {error ? (
+        <span className="row-meta" style={{ color: "var(--danger, #b33)" }}>
+          {error}
+        </span>
+      ) : null}
+    </span>
   );
 }
 

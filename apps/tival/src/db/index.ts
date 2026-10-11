@@ -44,9 +44,14 @@ async function ensurePgliteSchema(client: PGlite) {
 
     DO $$ BEGIN
       CREATE TYPE integration_provider AS ENUM (
-        'calendly','mercadopago','google_drive','slack','bigin'
+        'calendly','mercadopago','google_drive','slack','bigin','kapso'
       );
     EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+    -- DBs existentes creadas sin kapso
+    DO $$ BEGIN
+      ALTER TYPE integration_provider ADD VALUE IF NOT EXISTS 'kapso';
+    EXCEPTION WHEN others THEN null; END $$;
 
     DO $$ BEGIN
       CREATE TYPE integration_status AS ENUM ('disconnected','connected','error');

@@ -58,6 +58,14 @@ export const INTEGRATION_PROVIDERS: ProviderMeta[] = [
     blurb: "CRM del workspace.",
     connectable: false,
   },
+  {
+    id: "kapso",
+    slug: "kapso",
+    name: "Kapso",
+    blurb:
+      "WhatsApp Cloud API (templates de pago, recordatorios y reagenda).",
+    connectable: true,
+  },
 ];
 
 export function resolveProviderId(

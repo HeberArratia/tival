@@ -19,6 +19,7 @@
     "db:migrate-status": "tsx scripts/migrate-case-status.ts",
     "db:migrate-drop-won-lost": "tsx scripts/migrate-drop-won-lost-status.ts",
     "db:migrate-contacts": "tsx scripts/migrate-contacts-companies.ts",
+    "db:migrate-kapso": "tsx scripts/migrate-kapso-provider.ts",
     "db:seed-demo": "tsx scripts/seed-demo-identity.ts",
     "db:wipe-opps": "tsx scripts/wipe-identity-opps.ts"
   },

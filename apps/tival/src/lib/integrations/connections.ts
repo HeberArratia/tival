@@ -28,12 +28,20 @@ export {
 
 type StoredCredentials = {
   apiToken?: string;
+  /** Kapso Project API key */
+  apiKey?: string;
 } & Partial<DriveOAuthTokens>;
 
 export const CONNECTABLE_PROVIDERS: IntegrationProvider[] = [
   "calendly",
   "google_drive",
+  "kapso",
 ];
+
+export type KapsoCredentials = {
+  apiKey: string;
+  phoneNumberId: string;
+};
 
 /** Carpeta raíz por defecto Alfondo (distinta a n8n). */
 export const ALFONDO_DRIVE_ROOT_FOLDER_ID =
@@ -64,6 +72,8 @@ function toPublic(
   const cfg = (row.config ?? {}) as Record<string, unknown>;
   const publicBaseUrl =
     typeof cfg.publicBaseUrl === "string" ? cfg.publicBaseUrl : null;
+  const apiSecret =
+    row.provider === "kapso" ? creds.apiKey : creds.apiToken;
   return {
     id: row.id,
     workspaceId: row.workspaceId,
@@ -79,8 +89,8 @@ function toPublic(
         : null,
     hasSigningKey: Boolean(signing),
     signingKeyMasked: maskSecret(signing),
-    hasApiToken: Boolean(creds.apiToken),
-    apiTokenMasked: maskSecret(creds.apiToken),
+    hasApiToken: Boolean(apiSecret),
+    apiTokenMasked: maskSecret(apiSecret),
     hasRefreshToken: Boolean(creds.refreshToken),
     accountEmail: creds.accountEmail ?? null,
     config: (row.config ?? {}) as Record<string, unknown>,
@@ -333,6 +343,123 @@ export async function updateDriveConnection(input: {
     .returning();
 
   return toPublic(updated, ws);
+}
+
+export async function updateKapsoConnection(input: {
+  connectionId: string;
+  workspaceSlug: string;
+  apiKey?: string | null;
+  phoneNumberId?: string | null;
+  markConnected?: boolean;
+}) {
+  const ws = await getWorkspaceBySlug(input.workspaceSlug);
+  if (!ws) throw new Error(`Workspace not found: ${input.workspaceSlug}`);
+
+  const db = await getDb();
+  const [current] = await db
+    .select()
+    .from(integrationConnections)
+    .where(
+      and(
+        eq(integrationConnections.id, input.connectionId),
+        eq(integrationConnections.workspaceId, ws.id)
+      )
+    )
+    .limit(1);
+
+  if (!current) throw new Error("Connection not found");
+  if (current.provider !== "kapso") {
+    throw new Error("Not a kapso connection");
+  }
+
+  const patch: Partial<typeof integrationConnections.$inferInsert> = {
+    updatedAt: new Date(),
+    lastError: null,
+  };
+
+  const creds = credentialsFromEnc(current.credentialsEnc);
+  if (input.apiKey !== undefined) {
+    if (input.apiKey?.trim()) creds.apiKey = input.apiKey.trim();
+    else delete creds.apiKey;
+    patch.credentialsEnc =
+      Object.keys(creds).length > 0
+        ? encryptSecret(JSON.stringify(creds))
+        : null;
+  }
+
+  const configAfter = {
+    ...((current.config ?? {}) as Record<string, unknown>),
+  };
+  if (input.phoneNumberId !== undefined) {
+    if (input.phoneNumberId?.trim()) {
+      configAfter.phoneNumberId = input.phoneNumberId.trim();
+    } else {
+      delete configAfter.phoneNumberId;
+    }
+    patch.config = configAfter;
+  }
+
+  const hasKey = Boolean(creds.apiKey?.trim());
+  const cfgFinal = (patch.config ?? current.config ?? {}) as Record<
+    string,
+    unknown
+  >;
+  const hasPhone =
+    typeof cfgFinal.phoneNumberId === "string" &&
+    Boolean(cfgFinal.phoneNumberId.trim());
+
+  if (input.markConnected === false) {
+    patch.status = "disconnected";
+  } else if (hasKey && hasPhone) {
+    patch.status = "connected";
+  } else {
+    patch.status = "disconnected";
+  }
+
+  const [updated] = await db
+    .update(integrationConnections)
+    .set(patch)
+    .where(eq(integrationConnections.id, current.id))
+    .returning();
+
+  return toPublic(updated, ws);
+}
+
+/**
+ * Credenciales Kapso del workspace, o fallback KAPSO_* del env.
+ */
+export async function getKapsoCredentialsForWorkspace(
+  workspaceId: string
+): Promise<KapsoCredentials | null> {
+  const db = await getDb();
+  const [row] = await db
+    .select()
+    .from(integrationConnections)
+    .where(
+      and(
+        eq(integrationConnections.workspaceId, workspaceId),
+        eq(integrationConnections.provider, "kapso")
+      )
+    )
+    .limit(1);
+
+  if (row) {
+    const creds = credentialsFromEnc(row.credentialsEnc);
+    const cfg = (row.config ?? {}) as Record<string, unknown>;
+    const apiKey = creds.apiKey?.trim() || null;
+    const phoneNumberId =
+      typeof cfg.phoneNumberId === "string" ? cfg.phoneNumberId.trim() : "";
+    if (apiKey && phoneNumberId) {
+      return { apiKey, phoneNumberId };
+    }
+  }
+
+  const fromEnvKey = process.env.KAPSO_API_KEY?.trim() || null;
+  const fromEnvPhone = process.env.KAPSO_PHONE_NUMBER_ID?.trim() || null;
+  if (fromEnvKey && fromEnvPhone) {
+    return { apiKey: fromEnvKey, phoneNumberId: fromEnvPhone };
+  }
+  return null;
 }
 
 /** PAT Calendly del workspace, o fallback de env para dev local. */

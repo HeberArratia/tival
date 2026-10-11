@@ -49,6 +49,7 @@ export const integrationProviderEnum = pgEnum("integration_provider", [
   "google_drive",
   "slack",
   "bigin",
+  "kapso",
 ]);
 
 export const integrationStatusEnum = pgEnum("integration_status", [

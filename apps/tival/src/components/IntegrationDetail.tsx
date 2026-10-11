@@ -63,6 +63,11 @@ export function IntegrationDetail({
           workspaceSlug={workspaceSlug}
           connection={connection}
         />
+      ) : provider.id === "kapso" && provider.connectable ? (
+        <KapsoConnectPanel
+          workspaceSlug={workspaceSlug}
+          connection={connection}
+        />
       ) : provider.connectable ? (
         <div className="panel">
           <p className="integration-soon">Conectable · UI pendiente</p>
@@ -508,6 +513,177 @@ function CalendlyConnectPanel({
           Aún no llegó ningún webhook
         </p>
       )}
+    </div>
+  );
+}
+
+function KapsoConnectPanel({
+  workspaceSlug,
+  connection,
+}: {
+  workspaceSlug: string;
+  connection: ConnectionPublic | null;
+}) {
+  const router = useRouter();
+  const [busy, setBusy] = useState<"ensure" | "save" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
+  const [local, setLocal] = useState(connection);
+  const [apiKey, setApiKey] = useState("");
+  const [phoneNumberId, setPhoneNumberId] = useState(
+    typeof connection?.config?.phoneNumberId === "string"
+      ? connection.config.phoneNumberId
+      : ""
+  );
+  const [rotateKey, setRotateKey] = useState(false);
+  const isBusy = busy !== null;
+
+  useEffect(() => {
+    setLocal(connection);
+    if (typeof connection?.config?.phoneNumberId === "string") {
+      setPhoneNumberId(connection.config.phoneNumberId);
+    }
+  }, [connection]);
+
+  async function ensure() {
+    setBusy("ensure");
+    setError(null);
+    try {
+      const res = await fetch("/api/integrations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspaceSlug, provider: "kapso" }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "Error");
+      setLocal(data.connection);
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    if (!local) return;
+    const needKey = rotateKey || !local.hasApiToken;
+    if (needKey && !apiKey.trim()) return;
+    if (!phoneNumberId.trim()) return;
+
+    setBusy("save");
+    setError(null);
+    try {
+      const body: Record<string, unknown> = {
+        workspaceSlug,
+        phoneNumberId: phoneNumberId.trim(),
+        markConnected: true,
+      };
+      if (needKey) body.apiKey = apiKey.trim();
+
+      const res = await fetch(`/api/integrations/${local.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "Error");
+      setLocal(data.connection);
+      setApiKey("");
+      setRotateKey(false);
+      setFlash("Kapso guardado.");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (!local) {
+    return (
+      <div className="panel">
+        <div className="integration-actions" style={{ marginTop: 0 }}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={isBusy}
+            onClick={ensure}
+          >
+            {busy === "ensure" ? "Creando…" : "Activar conexión"}
+          </button>
+          {error ? <p className="field-error">{error}</p> : null}
+        </div>
+      </div>
+    );
+  }
+
+  const needKey = rotateKey || !local.hasApiToken;
+  const canSave =
+    phoneNumberId.trim().length > 0 && (!needKey || apiKey.trim().length > 0);
+
+  return (
+    <div className="panel">
+      <p className="panel-kicker">Configuración</p>
+
+      {flash ? (
+        <p className="integration-flash" role="status">
+          {flash}
+        </p>
+      ) : null}
+      {error ? <p className="field-error">{error}</p> : null}
+
+      <form className="integration-form" onSubmit={save}>
+        <SecretSlot
+          title="API Key"
+          blurb="Project API key de Kapso (Integrations → API keys)."
+          configured={local.hasApiToken}
+          masked={local.apiTokenMasked}
+          rotating={needKey}
+          onToggleRotate={() => {
+            setRotateKey((v) => !v);
+            setApiKey("");
+            setFlash(null);
+            setError(null);
+          }}
+          value={apiKey}
+          onChange={(v) => {
+            setApiKey(v);
+            setFlash(null);
+            setError(null);
+          }}
+          placeholder="Pegá la API key de Kapso"
+          emptyHint="En app.kapso.ai → Integrations → API keys."
+        />
+
+        <label className="field" style={{ marginTop: "1rem" }}>
+          <span>Phone number ID</span>
+          <input
+            type="text"
+            className="mono"
+            autoComplete="off"
+            placeholder="ej. 1378475012016056"
+            value={phoneNumberId}
+            onChange={(e) => {
+              setPhoneNumberId(e.target.value);
+              setFlash(null);
+              setError(null);
+            }}
+          />
+          <small>Meta phone_number_id del número Connected (Alfondo).</small>
+        </label>
+
+        <div className="integration-actions">
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={isBusy || !canSave}
+          >
+            {busy === "save" ? "Guardando…" : "Guardar"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

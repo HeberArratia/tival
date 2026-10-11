@@ -389,6 +389,7 @@ export async function rescheduleCase(input: {
     newCalendlyEventUuid: input.newCalendlyEventUuid,
   });
 
+  // WhatsApp reagenda + reminder T-1h: post enrich-meet (reason=reschedule).
   return updated;
 }
 
@@ -447,6 +448,7 @@ export async function mergeScheduleIntoCase(input: {
     input.actor ?? "calendly"
   );
 
+  // WhatsApp reagenda + reminder T-1h: post enrich-meet (reason=reschedule).
   return updated;
 }
 
@@ -699,6 +701,19 @@ export async function markPaid(input: {
   } catch (e) {
     console.error("[paid-slack]", e);
   }
+
+  try {
+    const { notifyPaymentConfirmedWhatsapp } = await import(
+      "@/lib/integrations/kapso-whatsapp"
+    );
+    await notifyPaymentConfirmedWhatsapp(paidCase);
+  } catch (e) {
+    console.error("[paid-whatsapp]", e);
+  }
+
+  void import("@/inngest/functions/meeting-remind").then(
+    ({ scheduleMeetingReminder }) => scheduleMeetingReminder(paidCase)
+  );
 
   return { case: paidCase, alreadyPaid: false };
 }
@@ -958,6 +973,16 @@ export async function markPropuestaEnviada(input: {
     { fromStageId: current.currentStageId },
     actor
   );
+
+  try {
+    const { notifyPropuestaEnviadaWhatsapp } = await import(
+      "@/lib/integrations/kapso-whatsapp"
+    );
+    await notifyPropuestaEnviadaWhatsapp(updated);
+  } catch (e) {
+    console.error("[propuesta-whatsapp]", e);
+  }
+
   return updated;
 }
 
