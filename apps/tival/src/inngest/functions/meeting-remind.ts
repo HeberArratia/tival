@@ -27,7 +27,7 @@ export const remindMeetingWhatsapp = inngest.createFunction(
     id: "remind-meeting-whatsapp",
     name: "WhatsApp meeting reminder T-1h",
     retries: 2,
-    concurrency: { limit: 10, key: "event.data.caseId" },
+    concurrency: { limit: 5, key: "event.data.caseId" },
     triggers: [{ event: "case/meeting.remind" }],
   },
   async ({ event, step }) => {
