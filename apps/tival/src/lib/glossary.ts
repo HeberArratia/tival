@@ -15,7 +15,8 @@ export const GLOSSARY = {
   },
   segmento: {
     term: "Segmento",
-    short: "Perfil que busca el workspace (S1, S2…). Atributo, no etapa.",
+    short:
+      "Perfil comercial (S1–S3). El wizard sugiere; el consultor valida tras el diagnóstico.",
   },
   producto: {
     term: "Producto",

@@ -24,6 +24,16 @@ export type WorkspaceSegment = {
 /** Modo de segmentación en una iniciativa. */
 export type SegmentMode = "classify" | "fixed";
 
+/** Origen del segmento mostrado en la opp. */
+export type CaseSegmentStatus = "sugerido" | "validado";
+
+export type ResolvedCaseSegment = {
+  segment: WorkspaceSegment;
+  /** Código crudo (S1, S2…). */
+  code: string;
+  status: CaseSegmentStatus;
+};
+
 /** Catálogo del workspace activo (default de instancia). */
 export function workspaceSegments(workspaceSlug?: string): WorkspaceSegment[] {
   return getWorkspacePack(workspaceSlug).segments;
@@ -54,24 +64,94 @@ export function segmentByCode(
   return segmentById(code, workspaceSlug);
 }
 
+function readSuggestedCode(caseRow: {
+  segmentoSugerido?: string | null;
+  qualification?: Record<string, unknown> | null;
+}): string | null {
+  const fromCol = caseRow.segmentoSugerido?.trim() || null;
+  if (fromCol) return fromCol;
+  const q = caseRow.qualification ?? {};
+  if (typeof q.segmento_sugerido === "string" && q.segmento_sugerido.trim()) {
+    return q.segmento_sugerido.trim();
+  }
+  return null;
+}
+
+function looksLikeWizardLegacy(caseRow: {
+  segmentoSugerido?: string | null;
+  qualification?: Record<string, unknown> | null;
+}) {
+  if (caseRow.segmentoSugerido?.trim()) return true;
+  const q = caseRow.qualification ?? {};
+  return Boolean(
+    q.diagnostico_enriched_at ||
+      q.segmento_sugerido ||
+      q.segmento_label ||
+      q.diagnostico_answers ||
+      // Enrich viejo guardaba el código en qualification.segmento
+      (typeof q.segmento === "string" && q.segmento.trim())
+  );
+}
+
 /**
- * Segmento de una oportunidad: columna `segmento` / qualification, o demo fake.
+ * Segmento de una oportunidad: confirmado (consultor) gana sobre sugerido (wizard).
  */
+export function resolveCaseSegmentInfo(
+  caseRow: {
+    id?: string;
+    segmento?: string | null;
+    segmentoSugerido?: string | null;
+    qualification?: Record<string, unknown> | null;
+  },
+  workspaceSlug?: string
+): ResolvedCaseSegment | null {
+  const suggested = readSuggestedCode(caseRow);
+  const confirmedCol = caseRow.segmento?.trim() || null;
+  const confirmedQ =
+    typeof caseRow.qualification?.segmento_confirmado === "string"
+      ? caseRow.qualification.segmento_confirmado.trim()
+      : null;
+  const confirmed = confirmedCol || confirmedQ || null;
+
+  // Ambos: consultor ya validó.
+  if (confirmed && suggested) {
+    const segment = segmentByCode(confirmed, workspaceSlug);
+    if (!segment) return null;
+    return { segment, code: confirmed, status: "validado" };
+  }
+
+  // Solo columna segmento: legacy enrich → sugerido; si no hay rastro wizard → validado.
+  if (confirmed && !suggested) {
+    const status: CaseSegmentStatus = looksLikeWizardLegacy(caseRow)
+      ? "sugerido"
+      : "validado";
+    // Si legacy wizard escribió en `segmento`, el código es el sugerido.
+    const code = confirmed;
+    const segment = segmentByCode(code, workspaceSlug);
+    if (!segment) return null;
+    return { segment, code, status };
+  }
+
+  if (suggested) {
+    const segment = segmentByCode(suggested, workspaceSlug);
+    if (!segment) return null;
+    return { segment, code: suggested, status: "sugerido" };
+  }
+
+  return null;
+}
+
+/** @deprecated Preferí resolveCaseSegmentInfo — solo el WorkspaceSegment. */
 export function resolveCaseSegment(
   caseRow: {
     id?: string;
     segmento?: string | null;
+    segmentoSugerido?: string | null;
     qualification?: Record<string, unknown> | null;
   },
   workspaceSlug?: string
 ) {
-  const fromCol = caseRow.segmento?.trim() || null;
-  const q = caseRow.qualification ?? {};
-  const fromQ =
-    typeof q.segmento === "string" && q.segmento.trim()
-      ? q.segmento.trim()
-      : null;
-  return segmentByCode(fromCol ?? fromQ, workspaceSlug);
+  return resolveCaseSegmentInfo(caseRow, workspaceSlug)?.segment ?? null;
 }
 
 export function segmentsByIds(
@@ -89,4 +169,13 @@ export function segmentModeLabel(mode: SegmentMode | undefined) {
   if (mode === "fixed") return "Fijo · todas las opp de esta iniciativa";
   if (mode === "classify") return "Clasifica · form / flujo resuelve S1–S3";
   return "—";
+}
+
+/** Normaliza código de segmento del pack (S1 / s1 → code canónico). */
+export function normalizeSegmentCode(
+  raw: string | null | undefined,
+  workspaceSlug?: string
+): string | null {
+  const seg = segmentByCode(raw, workspaceSlug);
+  return seg?.code ?? null;
 }

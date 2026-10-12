@@ -20,76 +20,96 @@ export const ALFONDO_SEGMENTS: WorkspaceSegment[] = [
   {
     id: "s1",
     code: "S1",
-    name: "Emprendedores iniciales",
-    blurb: "Equipos chicos, ventas bajas, explorando financiamiento o I+D.",
+    name: "Sin ventas formales / validación inicial",
+    blurb:
+      "El subsidio es el centro: suele necesitar el fondo para avanzar. Busca “a qué postular”. Atención estandarizada y delegada (poca hora senior).",
     criteria: [
       {
         key: "ventas",
-        label: "Ventas anuales",
-        hint: "Hasta ~80M CLP (orientativo)",
+        label: "Ventas / escala",
+        hint: "Sin ventas formales o validación inicial",
       },
-      { key: "equipo", label: "Tamaño", hint: "1–10 personas" },
       {
-        key: "busca",
-        label: "Qué busca",
-        hint: "Orientación, fondos tempranos, primeros pasos I+D",
+        key: "logica",
+        label: "Lógica comercial",
+        hint: "Alta dependencia de subsidio; el fondo habilita el avance",
+      },
+      {
+        key: "atencion",
+        label: "Atención / instrumentos",
+        hint: "Estandarizada · Semilla Inicia, SU Chile Build",
       },
     ],
   },
   {
     id: "s2",
     code: "S2",
-    name: "Mediana empresa",
-    blurb: "Operación estable; innovar o formalizar I+D / fondos.",
+    name: "Operación real y crecimiento",
+    blurb:
+      "Ya factura y opera. Quiere crecer o innovar; el financiamiento es palanca, no única condición. Atención consultiva + estructuración.",
     criteria: [
       {
         key: "ventas",
-        label: "Ventas anuales",
-        hint: "~80M–800M CLP (orientativo)",
+        label: "Ventas / escala",
+        hint: "< ~$500MM CLP (orientativo)",
       },
-      { key: "equipo", label: "Tamaño", hint: "11–50 personas" },
       {
-        key: "busca",
-        label: "Qué busca",
-        hint: "Diagnóstico, Ley I+D, portafolio de innovación",
+        key: "logica",
+        label: "Lógica comercial",
+        hint: "Crece/innova; el subsidio es palanca, no condición única",
+      },
+      {
+        key: "atencion",
+        label: "Atención / instrumentos",
+        hint: "Consultiva · Semilla Expande, Ignite/Growth, Súmate, Innova Región, Escalamiento",
       },
     ],
   },
   {
     id: "s2s3",
     code: "S2S3",
-    name: "Transición mediana–grande",
-    blurb: "Escala intermedia (~$500MM–$2.000MM) o complejidad equivalente.",
+    name: "Complejidad media-alta",
+    blurb:
+      "Misma lógica de crecimiento, con más complejidad (técnica, decisores, ticket). Suele pedir arquitectura/priorización senior antes de formular. Puente entre S2 y S3.",
     criteria: [
       {
         key: "ventas",
-        label: "Ventas anuales",
-        hint: "~500M–2.000M CLP (orientativo)",
+        label: "Ventas / escala",
+        hint: "~$500MM–$2.000MM CLP o complejidad equivalente",
       },
-      { key: "equipo", label: "Tamaño", hint: "Escala intermedia" },
       {
-        key: "busca",
-        label: "Qué busca",
-        hint: "Innovación formal, portafolio, Ley I+D",
+        key: "logica",
+        label: "Lógica comercial",
+        hint: "Crecimiento + complejidad; arquitectura senior antes de formular",
+      },
+      {
+        key: "atencion",
+        label: "Atención / instrumentos",
+        hint: "Senior en priorización · puente S2→S3",
       },
     ],
   },
   {
     id: "s3",
     code: "S3",
-    name: "Empresa grande",
-    blurb: "Escala corporativa; proyectos formales y compliance.",
+    name: "Estratégico / alta facturación",
+    blurb:
+      "Innovación por estrategia; el subsidio es herramienta (eficiencia de capital, riesgo, retorno). Conversación B2B senior: portafolio, Ley I+D, continuidad. No vender “postulación” commodity.",
     criteria: [
       {
         key: "ventas",
-        label: "Ventas anuales",
-        hint: "Sobre ~800M CLP (orientativo)",
+        label: "Ventas / escala",
+        hint: "> ~$2.000MM CLP (orientativo)",
       },
-      { key: "equipo", label: "Tamaño", hint: "50+ personas" },
       {
-        key: "busca",
-        label: "Qué busca",
-        hint: "Gobernanza I+D, certificaciones, proyectos grandes",
+        key: "logica",
+        label: "Lógica comercial",
+        hint: "Estrategia primero; el subsidio optimiza capital/riesgo/retorno",
+      },
+      {
+        key: "atencion",
+        label: "Atención / instrumentos",
+        hint: "B2B senior · portafolio, Ley I+D, continuidad (no postulación commodity)",
       },
     ],
   },

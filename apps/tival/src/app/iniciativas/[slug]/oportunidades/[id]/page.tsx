@@ -43,6 +43,7 @@ import { OpportunityIdentityEditor } from "@/components/OpportunityIdentityEdito
 import { OpportunityTabs } from "@/components/OpportunityTabs";
 import { ProductEditor } from "@/components/ProductEditor";
 import { RegionEditor } from "@/components/RegionEditor";
+import { SegmentEditor } from "@/components/SegmentEditor";
 import { caseTitle, getCaseWithEvents, getStagesForCase } from "@/lib/cases";
 import {
   extrasForCase,
@@ -50,6 +51,7 @@ import {
   opportunityHref,
   PB_CONSULTORIA,
   resolveOpportunityFields,
+  caseSegmentInfo,
   segmentForCase,
 } from "@/lib/fake-data";
 import {
@@ -94,7 +96,8 @@ export default async function IniciativaOportunidadPage({
 
   const stages = await getStagesForCase(c);
   const currentStage = stages.find((s) => s.id === c.currentStageId);
-  const seg = segmentForCase(c);
+  const segInfo = caseSegmentInfo(c);
+  const seg = segInfo?.segment ?? null;
   const fieldRows = resolveOpportunityFields(c);
   const extras = extrasForCase(c);
   const qualification = (c.qualification ?? {}) as Record<string, unknown>;
@@ -229,6 +232,7 @@ export default async function IniciativaOportunidadPage({
           <InitiativePill initiative={ini} />{" "}
           <SegmentPill
             segment={seg}
+            status={segInfo?.status}
             label={
               typeof qualification.segmento_label === "string"
                 ? qualification.segmento_label
@@ -381,6 +385,23 @@ export default async function IniciativaOportunidadPage({
                       currentRegion={currentRegion}
                       currentProductKeys={currentProductKeys}
                       productOptions={productOptions}
+                      suggestedSegmento={
+                        c.segmentoSugerido ??
+                        (typeof qualification.segmento_sugerido === "string"
+                          ? qualification.segmento_sugerido
+                          : typeof qualification.segmento === "string"
+                            ? qualification.segmento
+                            : segInfo?.status === "sugerido"
+                              ? segInfo.code
+                              : null)
+                      }
+                      currentSegmento={
+                        typeof qualification.segmento_confirmado === "string"
+                          ? qualification.segmento_confirmado
+                          : segInfo?.status === "validado"
+                            ? segInfo.code
+                            : null
+                      }
                     />
                   ) : null}
                   {currentStage?.key === "realizado" ? (
@@ -456,7 +477,38 @@ export default async function IniciativaOportunidadPage({
                       }
                     />
                     {isConsultoria ? (
-                      <div style={{ marginTop: "0.85rem" }}>
+                      <div
+                        style={{
+                          marginTop: "0.85rem",
+                          display: "grid",
+                          gap: "0.85rem",
+                        }}
+                      >
+                        <SegmentEditor
+                          caseId={c.id}
+                          currentSegmento={
+                            segInfo?.status === "validado"
+                              ? segInfo.code
+                              : typeof qualification.segmento_confirmado ===
+                                  "string"
+                                ? qualification.segmento_confirmado
+                                : null
+                          }
+                          suggestedSegmento={
+                            c.segmentoSugerido ??
+                            (typeof qualification.segmento_sugerido ===
+                            "string"
+                              ? qualification.segmento_sugerido
+                              : segInfo?.status === "sugerido"
+                                ? segInfo.code
+                                : null)
+                          }
+                          suggestedLabel={
+                            typeof qualification.segmento_label === "string"
+                              ? qualification.segmento_label
+                              : null
+                          }
+                        />
                         <RegionEditor
                           caseId={c.id}
                           currentRegion={currentRegion}
@@ -468,7 +520,14 @@ export default async function IniciativaOportunidadPage({
                   <DiagnosticoEnrichmentPanel
                     qualification={qualification}
                     landingSource={c.landingSource}
-                    segmento={c.segmento}
+                    segmentoSugerido={
+                      c.segmentoSugerido ??
+                      (typeof qualification.segmento_sugerido === "string"
+                        ? qualification.segmento_sugerido
+                        : segInfo?.status === "sugerido"
+                          ? segInfo.code
+                          : null)
+                    }
                   />
 
                   {isConsultoria ? (

@@ -181,6 +181,7 @@ async function ensurePgliteSchema(client: PGlite) {
       landing_source text,
       qualification_log_id text,
       segmento text,
+      segmento_sugerido text,
       payment_method payment_method,
       payment_status payment_status NOT NULL DEFAULT 'none',
       mp_payment_id text,
@@ -209,6 +210,7 @@ async function ensurePgliteSchema(client: PGlite) {
     ALTER TABLE cases ADD COLUMN IF NOT EXISTS meet_code text;
     ALTER TABLE cases ADD COLUMN IF NOT EXISTS google_calendar_event_id text;
     ALTER TABLE cases ADD COLUMN IF NOT EXISTS segmento text;
+    ALTER TABLE cases ADD COLUMN IF NOT EXISTS segmento_sugerido text;
     -- Legacy contact_* / company_name: dropear con npm run db:migrate-contacts
 
     CREATE TABLE IF NOT EXISTS case_events (
@@ -249,6 +251,7 @@ async function ensurePostgresColumns(sql: ReturnType<typeof postgres>) {
   if (globalForDb.migrated) return;
   await sql.unsafe(`
     ALTER TABLE cases ADD COLUMN IF NOT EXISTS segmento text;
+    ALTER TABLE cases ADD COLUMN IF NOT EXISTS segmento_sugerido text;
     ALTER TABLE cases ADD COLUMN IF NOT EXISTS meet_code text;
     ALTER TABLE cases ADD COLUMN IF NOT EXISTS google_calendar_event_id text;
     ALTER TABLE cases ADD COLUMN IF NOT EXISTS lost_reason text;

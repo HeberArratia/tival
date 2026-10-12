@@ -35,6 +35,7 @@ import {
   isFakeDataEnabled,
   opportunityHref,
   PB_CONSULTORIA,
+  caseSegmentInfo,
   segmentForCase,
 } from "@/lib/fake-data";
 import {
@@ -108,7 +109,7 @@ function HandoffCaseRow({
   productOptions: ProductOption[];
   consultants: { id: string; name: string }[];
 }) {
-  const seg = segmentForCase(c);
+  const segInfo = caseSegmentInfo(c);
   const consultant = memberById(c.assignedConsultantId);
   const keys = productKeysFromCase(c);
   const productsHint = keys.length
@@ -128,7 +129,10 @@ function HandoffCaseRow({
       >
         <div className="row-title">
           {caseTitle(c)}
-          <SegmentPill segment={seg} />
+          <SegmentPill
+            segment={segInfo?.segment}
+            status={segInfo?.status}
+          />
           <ClosingScorePill score={closingScoreFromCase(c)} />
           {["cancelled", "no_show"].includes(c.status) ? (
             <StatusPill status={c.status} />
@@ -212,6 +216,19 @@ function HandoffCaseRow({
             currentRegion={regionFromCase(c)}
             currentProductKeys={productKeysFromCase(c)}
             productOptions={productOptions}
+            suggestedSegmento={
+              c.segmentoSugerido ??
+              (typeof c.qualification?.segmento_sugerido === "string"
+                ? c.qualification.segmento_sugerido
+                : typeof c.qualification?.segmento === "string"
+                  ? c.qualification.segmento
+                  : c.segmento)
+            }
+            currentSegmento={
+              typeof c.qualification?.segmento_confirmado === "string"
+                ? c.qualification.segmento_confirmado
+                : null
+            }
           />
         ) : null}
         {actions.includes("mark_propuesta") ? (
@@ -577,7 +594,7 @@ export default async function DiagnosticoInnovacionCanvasPage({
                   <p className="empty">Sin oportunidades con este filtro.</p>
                 ) : (
                   listRows.map((c) => {
-                    const seg = segmentForCase(c);
+                    const segInfo = caseSegmentInfo(c);
                     const stage = stageForCase(stages, c);
                     const consultant = memberById(c.assignedConsultantId);
                     return (
@@ -593,7 +610,10 @@ export default async function DiagnosticoInnovacionCanvasPage({
                         >
                           <div className="row-title">
                             {caseTitle(c)}
-                            <SegmentPill segment={seg} />
+                            <SegmentPill
+                              segment={segInfo?.segment}
+                              status={segInfo?.status}
+                            />
                             <ClosingScorePill score={closingScoreFromCase(c)} />
                             {["cancelled", "no_show"].includes(c.status) ? (
                               <StatusPill status={c.status} />

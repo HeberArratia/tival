@@ -9,7 +9,11 @@ import {
   Topbar,
 } from "@/components/AppShell";
 import { getDirectoryContact } from "@/lib/contacts";
-import { initiativeForCase, opportunityHref, segmentForCase } from "@/lib/fake-data";
+import {
+  caseSegmentInfo,
+  initiativeForCase,
+  opportunityHref,
+} from "@/lib/fake-data";
 import { GLOSSARY } from "@/lib/glossary";
 
 export const dynamic = "force-dynamic";
@@ -105,7 +109,7 @@ export default async function ContactoDetailPage({
             <div className="row-list" style={{ marginTop: "0.75rem" }}>
               {opportunities.map((c) => {
                 const ini = initiativeForCase(c);
-                const seg = segmentForCase(c);
+                const segInfo = caseSegmentInfo(c);
                 const iniHref =
                   ini?.slug === "diagnostico"
                     ? "/procesos/diagnostico"
@@ -119,13 +123,17 @@ export default async function ContactoDetailPage({
                         {c.company?.name || c.contact?.name || "Oportunidad"}
                         <PlaybookPill playbookId={c.playbookId} />
                         <InitiativePill initiative={ini} />
-                        <SegmentPill segment={seg} />
+                        <SegmentPill
+                          segment={segInfo?.segment}
+                          status={segInfo?.status}
+                        />
                         <StatusPill status={c.status} />
                       </div>
                       <p className="row-meta">
                         {GLOSSARY.oportunidad.term} en{" "}
                         {ini?.name ?? "iniciativa"}
-                        {seg ? ` · ${seg.code}` : ""} · id {c.id.slice(0, 10)}…
+                        {segInfo ? ` · ${segInfo.code}` : ""} · id{" "}
+                        {c.id.slice(0, 10)}…
                       </p>
                     </div>
                     <div style={{ display: "flex", gap: "0.4rem", flexShrink: 0 }}>

@@ -14,6 +14,7 @@ import {
   setPrimaryCompany,
   setProducts,
   setRegion,
+  setSegmento,
   unlinkCompanyFromCase,
   updateCaseCompany,
 } from "@/lib/cases";
@@ -121,12 +122,17 @@ export async function POST(
         : typeof body?.productKey === "string" && body.productKey.trim()
           ? [body.productKey.trim()]
           : null;
+      const segmento =
+        typeof body?.segmento === "string" && body.segmento.trim()
+          ? body.segmento.trim()
+          : null;
       const row = await markDiagnosticoRealizado({
         caseId: id,
         actor,
         closingScore,
         region,
         productKeys,
+        segmento,
       });
       return NextResponse.json({ ok: true, case: row });
     }
@@ -164,6 +170,21 @@ export async function POST(
       const row = await setRegion({
         caseId: id,
         region,
+        actor,
+      });
+      return NextResponse.json({ ok: true, case: row });
+    }
+
+    if (action === "set_segmento") {
+      const segmento =
+        body?.segmento === null || body?.segmento === ""
+          ? null
+          : typeof body?.segmento === "string"
+            ? body.segmento.trim()
+            : null;
+      const row = await setSegmento({
+        caseId: id,
+        segmento,
         actor,
       });
       return NextResponse.json({ ok: true, case: row });

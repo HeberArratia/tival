@@ -379,6 +379,7 @@ async function main() {
       landingSource: c.landingSource,
       qualificationLogId: c.qualificationLogId,
       segmento: c.segmento ?? null,
+      segmentoSugerido: c.segmentoSugerido ?? null,
       paymentMethod: c.paymentMethod,
       paymentStatus: c.paymentStatus,
       paidAt: c.paidAt,

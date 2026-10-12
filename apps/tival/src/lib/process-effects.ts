@@ -615,6 +615,11 @@ const EVENT_LABELS: Record<
     kind: "efecto",
     result: "fail",
   },
+  segmento_set: {
+    title: "Humano · segmento validado",
+    kind: "humano",
+    result: "ok",
+  },
   no_show_marked: {
     title: "Humano · no-show",
     kind: "humano",

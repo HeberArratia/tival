@@ -28,14 +28,16 @@ function displayLanding(raw: string | null | undefined) {
   return KNOWN_LANDINGS.has(v) ? raw.trim() : null;
 }
 
+/** Solo datos del wizard Alfondo (no el segmento definitivo del consultor). */
 export function DiagnosticoEnrichmentPanel({
   qualification,
   landingSource,
-  segmento,
+  segmentoSugerido,
 }: {
   qualification: Record<string, unknown> | null | undefined;
   landingSource?: string | null;
-  segmento?: string | null;
+  /** Segmento sugerido por wizard (contexto). */
+  segmentoSugerido?: string | null;
 }) {
   const answers = readAnswers(qualification);
   const segmentoLabel =
@@ -65,7 +67,7 @@ export function DiagnosticoEnrichmentPanel({
     : [];
 
   const hasMeta =
-    Boolean(segmento || segmentoLabel || landing || fit || wizardKind) ||
+    Boolean(segmentoSugerido || segmentoLabel || landing || fit || wizardKind) ||
     selections.length > 0;
 
   if (!hasMeta) return null;
@@ -73,16 +75,23 @@ export function DiagnosticoEnrichmentPanel({
   return (
     <div className="panel" style={{ marginTop: "1rem" }}>
       <p className="panel-kicker">Diagnóstico Alfondo</p>
-      <h3>Cuestionario y segmento</h3>
+      <h3>Cuestionario</h3>
+      <p className="lede" style={{ marginTop: "0.35rem" }}>
+        Respuestas del wizard pre-agenda. El segmento definitivo lo valida el
+        consultor en la ficha.
+      </p>
 
       <ul className="initiative-list" style={{ marginTop: "0.75rem" }}>
-        {segmento || segmentoLabel ? (
+        {segmentoSugerido || segmentoLabel ? (
           <li>
-            <strong>Segmento</strong> ·{" "}
-            {segmentoLabel ?? segmento}
-            {segmento && segmentoLabel ? (
-              <span className="pill" style={{ marginLeft: "0.35rem" }}>
-                {segmento}
+            <strong>Segmento sugerido</strong> ·{" "}
+            {segmentoLabel ?? segmentoSugerido}
+            {segmentoSugerido ? (
+              <span
+                className="pill pill-segment-sugerido"
+                style={{ marginLeft: "0.35rem" }}
+              >
+                {segmentoSugerido}
               </span>
             ) : null}
           </li>
@@ -100,7 +109,7 @@ export function DiagnosticoEnrichmentPanel({
         ) : null}
         {wizardKind ? (
           <li>
-            <strong>Cuestionario</strong> · {wizardKindLabel(wizardKind)}
+            <strong>Tipo</strong> · {wizardKindLabel(wizardKind)}
           </li>
         ) : null}
       </ul>
@@ -108,13 +117,12 @@ export function DiagnosticoEnrichmentPanel({
       {selections.length > 0 ? (
         <>
           <p className="panel-kicker" style={{ marginTop: "1rem" }}>
-            Respuestas del diagnóstico
+            Respuestas
           </p>
           <ul className="initiative-list" style={{ marginTop: "0.5rem" }}>
             {selections.map(([key, sel]) => {
               const title =
-                sel?.question?.title?.trim() ||
-                key.replace(/_/g, " ");
+                sel?.question?.title?.trim() || key.replace(/_/g, " ");
               const label = sel?.label?.trim() || "—";
               const hint = sel?.hint?.trim();
               return (

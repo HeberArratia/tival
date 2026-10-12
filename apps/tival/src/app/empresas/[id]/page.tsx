@@ -10,7 +10,11 @@ import {
 } from "@/components/AppShell";
 import { chileRegionLabel } from "@/lib/chile-regions";
 import { getDirectoryCompany } from "@/lib/companies-dir";
-import { initiativeForCase, opportunityHref, segmentForCase } from "@/lib/fake-data";
+import {
+  caseSegmentInfo,
+  initiativeForCase,
+  opportunityHref,
+} from "@/lib/fake-data";
 import { GLOSSARY } from "@/lib/glossary";
 
 export const dynamic = "force-dynamic";
@@ -107,7 +111,7 @@ export default async function EmpresaDetailPage({
             <div className="row-list" style={{ marginTop: "0.75rem" }}>
               {opportunities.map((c) => {
                 const ini = initiativeForCase(c);
-                const seg = segmentForCase(c);
+                const segInfo = caseSegmentInfo(c);
                 return (
                   <div key={c.id} className="row" style={{ cursor: "default" }}>
                     <div>
@@ -115,7 +119,10 @@ export default async function EmpresaDetailPage({
                         {c.contact?.name || "Oportunidad"}
                         <PlaybookPill playbookId={c.playbookId} />
                         <InitiativePill initiative={ini} />
-                        <SegmentPill segment={seg} />
+                        <SegmentPill
+                          segment={segInfo?.segment}
+                          status={segInfo?.status}
+                        />
                         <StatusPill status={c.status} />
                       </div>
                       <p className="row-meta">{ini?.name ?? "iniciativa"}</p>

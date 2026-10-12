@@ -17,7 +17,7 @@ import {
 import {
   initiativeForCase,
   opportunityHref,
-  segmentForCase,
+  caseSegmentInfo,
 } from "@/lib/fake-data";
 import { memberById } from "@/lib/members-catalog";
 import { recipeForStageKey } from "@/lib/process-effects";
@@ -168,7 +168,7 @@ export function ProcessBoard({
                 ) : (
                   cards.map((c) => {
                     const ini = showInitiative ? initiativeForCase(c) : null;
-                    const seg = segmentForCase(c);
+                    const segInfo = caseSegmentInfo(c);
                     const stageKey = stageKeyForCase(stages, c);
                     // Solo “sin pago”: el resto de cierres se ven normales.
                     const muted =
@@ -238,7 +238,10 @@ export function ProcessBoard({
                           </div>
                         ) : null}
                         <div className="board-card-foot">
-                          <SegmentPill segment={seg} />
+                          <SegmentPill
+                            segment={segInfo?.segment}
+                            status={segInfo?.status}
+                          />
                           <ClosingScorePill
                             score={closingScoreFromQualification(c.qualification)}
                           />

@@ -254,15 +254,32 @@ export function InitiativePill({
 export function SegmentPill({
   segment,
   label,
+  status,
 }: {
   segment: WorkspaceSegment | null | undefined;
   /** Label Alfondo (segmento_label); si no, usa name del pack. */
   label?: string | null;
+  /** En oportunidades: sugerido (rojo) vs validado (verde). */
+  status?: "sugerido" | "validado" | null;
 }) {
   if (!segment) return null;
+  const cls =
+    status === "validado"
+      ? "pill pill-segment-validado"
+      : status === "sugerido"
+        ? "pill pill-segment-sugerido"
+        : "pill pill-segment";
+  const titleParts = [
+    label || segment.name,
+    status === "sugerido" ? "Sugerido por el wizard" : null,
+    status === "validado" ? "Validado por el consultor" : null,
+  ].filter(Boolean);
   return (
-    <span className="pill pill-segment" title={label || segment.name}>
+    <span className={cls} title={titleParts.join(" · ")}>
       {segment.code}
+      {status === "sugerido" ? (
+        <span style={{ fontWeight: 500, opacity: 0.85 }}> · sugerido</span>
+      ) : null}
     </span>
   );
 }

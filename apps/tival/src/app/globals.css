@@ -432,15 +432,31 @@ button {
 }
 
 .pill-segment {
-  background: rgba(238, 121, 126, 0.14);
-  color: #b44a52;
+  background: rgba(32, 32, 35, 0.06);
+  color: var(--t-muted);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/** Wizard Alfondo — aún no confirmado por consultor. */
+.pill-segment-sugerido {
+  background: rgba(220, 38, 38, 0.12);
+  color: #b91c1c;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/** Confirmado por el consultor post-diagnóstico. */
+.pill-segment-validado {
+  background: rgba(22, 163, 74, 0.12);
+  color: var(--t-ok);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
 
 .pill-segment-mode {
-  background: rgba(238, 121, 126, 0.08);
-  color: #8f4a50;
+  background: rgba(32, 32, 35, 0.05);
+  color: var(--t-muted);
   font-weight: 500;
 }
 

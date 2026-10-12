@@ -21,7 +21,12 @@ import {
   type OpportunityFieldDef,
 } from "@/lib/opportunity-fields";
 import type { SegmentId, SegmentMode } from "@/lib/segments";
-import { resolveCaseSegment, segmentById } from "@/lib/segments";
+import {
+  resolveCaseSegmentInfo,
+  segmentById,
+  type CaseSegmentStatus,
+  type ResolvedCaseSegment,
+} from "@/lib/segments";
 import { getWorkspacePack } from "@/lib/workspace/registry";
 
 const hours = (h: number) => new Date(Date.now() + h * 3600_000);
@@ -588,15 +593,39 @@ export function opportunityHref(caseRow: {
   return `/iniciativas/${slug}/oportunidades/${caseRow.id}`;
 }
 
+/** Segmento + estado (sugerido wizard / validado consultor). */
+export function caseSegmentInfo(caseRow: {
+  id: string;
+  segmento?: string | null;
+  segmentoSugerido?: string | null;
+  qualification?: Record<string, unknown> | null;
+}): ResolvedCaseSegment | null {
+  const fakeId = CASE_SEGMENT[caseRow.id];
+  if (fakeId) {
+    const segment = segmentById(fakeId);
+    if (!segment) return null;
+    return { segment, code: segment.code, status: "validado" };
+  }
+  return resolveCaseSegmentInfo(caseRow);
+}
+
 /** Segmento resuelto en la oportunidad (UI). */
 export function segmentForCase(caseRow: {
   id: string;
   segmento?: string | null;
+  segmentoSugerido?: string | null;
   qualification?: Record<string, unknown> | null;
 }) {
-  const fakeId = CASE_SEGMENT[caseRow.id];
-  if (fakeId) return segmentById(fakeId);
-  return resolveCaseSegment(caseRow);
+  return caseSegmentInfo(caseRow)?.segment ?? null;
+}
+
+export function segmentStatusForCase(caseRow: {
+  id: string;
+  segmento?: string | null;
+  segmentoSugerido?: string | null;
+  qualification?: Record<string, unknown> | null;
+}): CaseSegmentStatus | null {
+  return caseSegmentInfo(caseRow)?.status ?? null;
 }
 
 export type ResolvedOpportunityField = {
@@ -688,6 +717,7 @@ export function extrasForCase(caseRow: {
   landingSource?: string | null;
   calendlyEventUuid?: string | null;
   segmento?: string | null;
+  segmentoSugerido?: string | null;
 }) {
   const fromFake = CASE_EXTRAS[caseRow.id];
   if (fromFake) return fromFake;
@@ -699,9 +729,17 @@ export function extrasForCase(caseRow: {
     extras.calendly_event_uuid = caseRow.calendlyEventUuid;
   if (typeof caseRow.segmento === "string" && caseRow.segmento) {
     extras.segmento = caseRow.segmento;
-  } else if (typeof q.segmento === "string" && q.segmento) {
-    extras.segmento = q.segmento;
+  } else if (
+    typeof q.segmento_confirmado === "string" &&
+    q.segmento_confirmado
+  ) {
+    extras.segmento = q.segmento_confirmado;
   }
+  const sugerido =
+    caseRow.segmentoSugerido ||
+    (typeof q.segmento_sugerido === "string" ? q.segmento_sugerido : null) ||
+    (typeof q.segmento === "string" ? q.segmento : null);
+  if (sugerido) extras.segmento_sugerido = sugerido;
   if (typeof q.segmento_label === "string")
     extras.segmento_label = q.segmento_label;
   if (typeof q.host_email === "string") extras.host = q.host_email;
@@ -994,6 +1032,7 @@ function base(
     landingSource: "diagnostico-innovacion",
     qualificationLogId: null,
     segmento: null,
+    segmentoSugerido: null,
     paymentMethod: null,
     paymentStatus: "none",
     mpPaymentId: null,

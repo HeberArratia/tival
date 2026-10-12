@@ -16,6 +16,7 @@ import {
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { canAssignConsultant } from "@/lib/members-catalog";
 import { toProductOption, type ProductOption } from "@/lib/products";
+import { workspaceSegments } from "@/lib/segments";
 import { isTerminalStageKey } from "@/lib/terminal-stages";
 
 const EXCEPTION_STATUSES = ["cancelled", "no_show", "rescheduled_away"];
@@ -115,6 +116,7 @@ async function postAction(
     region?: string | null;
     productKeys?: string[] | null;
     consultantId?: string | null;
+    segmento?: string | null;
   }
 ): Promise<{ ok: boolean; status: number; error?: string }> {
   const res = await fetch(`/api/cases/${caseId}/actions`, {
@@ -842,6 +844,10 @@ export function MarkRealizadoButton({
   currentRegion,
   currentProductKeys,
   productOptions: productOptionsProp,
+  /** Segmento sugerido por el wizard (prefill). */
+  suggestedSegmento = null,
+  /** Segmento ya confirmado (si existe). */
+  currentSegmento = null,
 }: {
   caseId: string;
   status: string;
@@ -852,8 +858,13 @@ export function MarkRealizadoButton({
   currentRegion?: string | null;
   currentProductKeys?: string[];
   productOptions?: ProductOption[];
+  suggestedSegmento?: string | null;
+  currentSegmento?: string | null;
 }) {
   const router = useRouter();
+  const segmentOptions = workspaceSegments();
+  const defaultSeg =
+    currentSegmento?.trim() || suggestedSegmento?.trim() || null;
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [score, setScore] = useState<ClosingScore | null>(
@@ -868,12 +879,16 @@ export function MarkRealizadoButton({
   const [productOptions, setProductOptions] = useState<ProductOption[]>(
     productOptionsProp ?? []
   );
+  const [segmento, setSegmento] = useState<string | null>(defaultSeg);
 
   useEffect(() => {
     if (open) {
       setScore(isClosingScore(currentClosingScore) ? currentClosingScore : null);
       setRegion(isChileRegion(currentRegion) ? currentRegion : null);
       setProductKeys(currentProductKeys ?? []);
+      setSegmento(
+        currentSegmento?.trim() || suggestedSegmento?.trim() || null
+      );
       if (productOptionsProp?.length) {
         setProductOptions(productOptionsProp);
       } else {
@@ -898,6 +913,8 @@ export function MarkRealizadoButton({
     currentRegion,
     currentProductKeys,
     productOptionsProp,
+    suggestedSegmento,
+    currentSegmento,
   ]);
 
   if (!canMarkRealizado({ status, stageKey })) return null;
@@ -917,6 +934,7 @@ export function MarkRealizadoButton({
         closingScore: score,
         region,
         productKeys,
+        segmento,
       });
       setOpen(false);
       router.refresh();
@@ -924,6 +942,14 @@ export function MarkRealizadoButton({
       setLoading(false);
     }
   }
+
+  const suggestedLabel = suggestedSegmento
+    ? segmentOptions.find(
+        (s) =>
+          s.code.toLowerCase() === suggestedSegmento.toLowerCase() ||
+          s.id === suggestedSegmento.toLowerCase()
+      )?.name
+    : null;
 
   return (
     <>
@@ -956,9 +982,38 @@ export function MarkRealizadoButton({
             <p className="panel-kicker">Diagnóstico</p>
             <h3 id="realizado-modal-title">Marcar como realizado</h3>
             <p className="lede" style={{ marginTop: "0.35rem" }}>
-              Recordatorio: completá score, productos y región si ya los tenés.
-              Son opcionales — podés dejarlos vacíos y cargarlos después.
+              Completá lo que ya tengas. Todo es opcional — podés cargarlo
+              después. El segmento lo valida el consultor tras la reunión.
             </p>
+
+            <div className="region-editor" style={{ marginTop: "0.85rem" }}>
+              <label className="field-label" htmlFor="realizado-segmento">
+                Segmento
+              </label>
+              <select
+                id="realizado-segmento"
+                className="field-input"
+                value={segmento ?? ""}
+                disabled={loading}
+                onChange={(e) =>
+                  setSegmento(e.target.value ? e.target.value : null)
+                }
+              >
+                <option value="">Sin confirmar</option>
+                {segmentOptions.map((s) => (
+                  <option key={s.id} value={s.code}>
+                    {s.code} — {s.name}
+                  </option>
+                ))}
+              </select>
+              {suggestedSegmento ? (
+                <p className="row-meta" style={{ marginTop: "0.35rem" }}>
+                  Sugerido por el wizard:{" "}
+                  <strong>{suggestedSegmento}</strong>
+                  {suggestedLabel ? ` — ${suggestedLabel}` : ""}
+                </p>
+              ) : null}
+            </div>
 
             <div style={{ marginTop: "0.85rem" }}>
               <ClosingScorePicker

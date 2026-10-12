@@ -48,6 +48,7 @@ import {
   memberById,
 } from "@/lib/members";
 import { normalizeLandingSource } from "@/lib/workspace/calendly-map";
+import { normalizeSegmentCode } from "@/lib/segments";
 import {
   defaultWorkspaceSlug,
   getWorkspacePack,
@@ -848,6 +849,8 @@ export async function markDiagnosticoRealizado(input: {
   closingScore?: ClosingScore | null;
   region?: ChileRegion | null;
   productKeys?: string[] | null;
+  /** Segmento confirmado por el consultor (opcional). */
+  segmento?: string | null;
 }): Promise<CaseRow> {
   const db = await getDb();
   const [current] = await db
@@ -890,6 +893,7 @@ export async function markDiagnosticoRealizado(input: {
         ),
       ]
     : null;
+  const segmento = normalizeSegmentCode(input.segmento);
 
   const qPatch: Record<string, unknown> = {};
   if (score) qPatch.closing_score = score;
@@ -897,6 +901,7 @@ export async function markDiagnosticoRealizado(input: {
   if (productKeys && productKeys.length > 0) {
     qPatch.productos = productKeys;
   }
+  if (segmento) qPatch.segmento_confirmado = segmento;
 
   let nextQualification: Record<string, unknown> | undefined;
   if (Object.keys(qPatch).length > 0) {
@@ -911,6 +916,7 @@ export async function markDiagnosticoRealizado(input: {
     .update(cases)
     .set({
       currentStageId: realizadoStage.id,
+      ...(segmento ? { segmento } : {}),
       ...(nextQualification ? { qualification: nextQualification } : {}),
       updatedAt: new Date(),
     })
@@ -925,6 +931,16 @@ export async function markDiagnosticoRealizado(input: {
       ...(score ? { closingScore: score } : {}),
       ...(region ? { region } : {}),
       ...(productKeys && productKeys.length ? { productKeys } : {}),
+      ...(segmento
+        ? {
+            segmento,
+            segmentoSugerido:
+              current.segmentoSugerido ??
+              (typeof current.qualification?.segmento_sugerido === "string"
+                ? current.qualification.segmento_sugerido
+                : null),
+          }
+        : {}),
     },
     actor
   );
@@ -1028,6 +1044,53 @@ export async function setClosingScore(input: {
     updated.id,
     "closing_score_set",
     { closingScore: score },
+    input.actor ?? "ops"
+  );
+  return updated;
+}
+
+/** Segmento definitivo del consultor (columna `segmento`). */
+export async function setSegmento(input: {
+  caseId: string;
+  segmento: string | null;
+  actor?: string;
+}): Promise<CaseRow> {
+  const db = await getDb();
+  const [current] = await db
+    .select()
+    .from(cases)
+    .where(eq(cases.id, input.caseId))
+    .limit(1);
+  if (!current) throw new Error("Case not found");
+
+  const segmento = normalizeSegmentCode(input.segmento);
+  const q = {
+    ...((current.qualification ?? {}) as Record<string, unknown>),
+  };
+  if (segmento) q.segmento_confirmado = segmento;
+  else delete q.segmento_confirmado;
+
+  const [updated] = await db
+    .update(cases)
+    .set({
+      segmento,
+      qualification: q,
+      updatedAt: new Date(),
+    })
+    .where(eq(cases.id, current.id))
+    .returning();
+
+  await appendEvent(
+    updated.id,
+    "segmento_set",
+    {
+      segmento,
+      segmentoSugerido:
+        current.segmentoSugerido ??
+        (typeof current.qualification?.segmento_sugerido === "string"
+          ? current.qualification.segmento_sugerido
+          : null),
+    },
     input.actor ?? "ops"
   );
   return updated;
@@ -1604,7 +1667,7 @@ export async function applyDiagnosticoEnrichment(
   const enrichedAt = new Date().toISOString();
   const qualification = {
     ...(current.qualification ?? {}),
-    segmento: input.segmento,
+    segmento_sugerido: input.segmento,
     segmento_label: input.segmentoLabel ?? null,
     fit_innovacion: input.fitInnovacion ?? null,
     fit_innovacion_label: input.fitInnovacionLabel ?? null,
@@ -1631,7 +1694,8 @@ export async function applyDiagnosticoEnrichment(
   const [updated] = await db
     .update(cases)
     .set({
-      segmento: input.segmento,
+      // Wizard → solo sugerido. No pisa segmento confirmado por consultor.
+      segmentoSugerido: input.segmento,
       qualificationLogId:
         input.diagnosticoLogId || current.qualificationLogId,
       landingSource: nextLanding,
@@ -1648,7 +1712,7 @@ export async function applyDiagnosticoEnrichment(
     "diagnostico_enriched",
     {
       diagnosticoLogId: input.diagnosticoLogId,
-      segmento: input.segmento,
+      segmentoSugerido: input.segmento,
       segmentoLabel: input.segmentoLabel ?? null,
       landingSource: input.landingSource ?? null,
       wizardKind: input.wizardKind ?? null,
