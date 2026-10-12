@@ -19,6 +19,11 @@ export type CalendlyInviteeMapping = {
   rutQuestion?: RegExp[];
   /** Preferir utm_medium vs utm_source como landing_source */
   landingFromTracking?: "utm_medium" | "utm_source" | "either";
+  /**
+   * Si está set, solo se aceptan estos valores (ej. landings diagnóstico).
+   * `utm_source=alfondo` u otros ruido → null.
+   */
+  allowedLandings?: string[];
 };
 
 export type LandingAliasRule = {

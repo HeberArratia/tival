@@ -377,6 +377,8 @@ async function main() {
       meetUrl: c.meetUrl,
       qualification: q,
       landingSource: c.landingSource,
+      qualificationLogId: c.qualificationLogId,
+      segmento: c.segmento ?? null,
       paymentMethod: c.paymentMethod,
       paymentStatus: c.paymentStatus,
       paidAt: c.paidAt,

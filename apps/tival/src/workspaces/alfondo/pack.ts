@@ -56,6 +56,25 @@ export const ALFONDO_SEGMENTS: WorkspaceSegment[] = [
     ],
   },
   {
+    id: "s2s3",
+    code: "S2S3",
+    name: "Transición mediana–grande",
+    blurb: "Escala intermedia (~$500MM–$2.000MM) o complejidad equivalente.",
+    criteria: [
+      {
+        key: "ventas",
+        label: "Ventas anuales",
+        hint: "~500M–2.000M CLP (orientativo)",
+      },
+      { key: "equipo", label: "Tamaño", hint: "Escala intermedia" },
+      {
+        key: "busca",
+        label: "Qué busca",
+        hint: "Innovación formal, portafolio, Ley I+D",
+      },
+    ],
+  },
+  {
     id: "s3",
     code: "S3",
     name: "Empresa grande",
@@ -95,6 +114,11 @@ export const alfondoPack: WorkspacePack = {
     ],
     rutQuestion: [/rut/i, /factura/i, /empresa/i],
     landingFromTracking: "utm_medium",
+    allowedLandings: [
+      "diagnostico",
+      "diagnostico-landing",
+      "diagnostico-innovacion",
+    ],
   },
   landingAliases: [
     { match: /diagnostico|diag/, initiativeSlug: "diagnostico" },

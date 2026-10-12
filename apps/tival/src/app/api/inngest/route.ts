@@ -1,5 +1,6 @@
 import { serve } from "inngest/next";
 import { inngest } from "@/inngest/client";
+import { enrichDiagnosticoArtifacts } from "@/inngest/functions/enrich-diagnostico";
 import { enrichMeetArtifacts } from "@/inngest/functions/enrich-meet";
 import { remindMeetingWhatsapp } from "@/inngest/functions/meeting-remind";
 import { collectPostMeetArtifacts } from "@/inngest/functions/post-meet-collect";
@@ -15,6 +16,7 @@ export const { GET, POST, PUT } = serve({
   client: inngest,
   functions: [
     enrichMeetArtifacts,
+    enrichDiagnosticoArtifacts,
     collectPostMeetArtifacts,
     remindMeetingWhatsapp,
     notifyRescheduleWhatsappFn,

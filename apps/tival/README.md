@@ -129,6 +129,18 @@ npm run fake:calendly -- --n8n-array  # envuelve como array (forma n8n)
 
 Pago — referencia Alfondo: `external_reference = diag_{calendlyEventUuid}` → `POST /api/payments` con `action: payment_approved`.
 
+Enrichment diagnóstico (wizard + segmento): tras Calendly, si hay `utm_content` (= `qualification_log_id`), Tival llama `GET {ALFONDO_BASE_URL}/api/diagnostico/log/:id` con `ALFONDO_API_KEY` (async / Inngest). Fallos no bloquean el lead.
+
+```bash
+# .env.local
+ALFONDO_BASE_URL=https://alfondo.cl
+ALFONDO_API_KEY=…   # mismo valor que alfondo TIVAL_API_KEY
+
+npm run enrich:diagnostico -- --case=<uuid>
+npm run enrich:diagnostico -- --log=bb1e915c-a05c-402d-8e46-f7bb15554fb9 --dry-api
+```
+
+
 Transfer — botón **Confirmar transferencia** en la ficha si `payment_status !== paid` (no depende de lo elegido en la web).
 
 Cada ejecución de `fake:calendly` genera nombre, email, teléfono, RUT y proyecto distintos.

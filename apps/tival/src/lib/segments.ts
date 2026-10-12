@@ -37,7 +37,41 @@ export function segmentById(
   workspaceSlug?: string
 ) {
   if (!id) return null;
-  return workspaceSegments(workspaceSlug).find((s) => s.id === id) ?? null;
+  const needle = id.trim().toLowerCase();
+  return (
+    workspaceSegments(workspaceSlug).find(
+      (s) => s.id === needle || s.id === id || s.code.toLowerCase() === needle
+    ) ?? null
+  );
+}
+
+/** Resuelve por código Alfondo (S1, S2, S2S3, S3) o id pack (s1…). */
+export function segmentByCode(
+  code: string | null | undefined,
+  workspaceSlug?: string
+) {
+  if (!code) return null;
+  return segmentById(code, workspaceSlug);
+}
+
+/**
+ * Segmento de una oportunidad: columna `segmento` / qualification, o demo fake.
+ */
+export function resolveCaseSegment(
+  caseRow: {
+    id?: string;
+    segmento?: string | null;
+    qualification?: Record<string, unknown> | null;
+  },
+  workspaceSlug?: string
+) {
+  const fromCol = caseRow.segmento?.trim() || null;
+  const q = caseRow.qualification ?? {};
+  const fromQ =
+    typeof q.segmento === "string" && q.segmento.trim()
+      ? q.segmento.trim()
+      : null;
+  return segmentByCode(fromCol ?? fromQ, workspaceSlug);
 }
 
 export function segmentsByIds(

@@ -330,6 +330,8 @@ export const cases = pgTable(
     qualification: jsonb("qualification").$type<Record<string, unknown>>(),
     landingSource: text("landing_source"),
     qualificationLogId: text("qualification_log_id"),
+    /** Segmento comercial Alfondo (S1 | S2 | S2S3 | S3) desde wizard. */
+    segmento: text("segmento"),
 
     paymentMethod: paymentMethodEnum("payment_method"),
     paymentStatus: paymentStatusEnum("payment_status").default("none").notNull(),

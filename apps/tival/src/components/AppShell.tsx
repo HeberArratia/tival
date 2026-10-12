@@ -253,12 +253,15 @@ export function InitiativePill({
 
 export function SegmentPill({
   segment,
+  label,
 }: {
   segment: WorkspaceSegment | null | undefined;
+  /** Label Alfondo (segmento_label); si no, usa name del pack. */
+  label?: string | null;
 }) {
   if (!segment) return null;
   return (
-    <span className="pill pill-segment" title={segment.name}>
+    <span className="pill pill-segment" title={label || segment.name}>
       {segment.code}
     </span>
   );

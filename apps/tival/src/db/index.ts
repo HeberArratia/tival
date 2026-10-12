@@ -180,6 +180,7 @@ async function ensurePgliteSchema(client: PGlite) {
       qualification jsonb,
       landing_source text,
       qualification_log_id text,
+      segmento text,
       payment_method payment_method,
       payment_status payment_status NOT NULL DEFAULT 'none',
       mp_payment_id text,
@@ -207,6 +208,7 @@ async function ensurePgliteSchema(client: PGlite) {
     ALTER TABLE cases ADD COLUMN IF NOT EXISTS company_id uuid REFERENCES companies(id);
     ALTER TABLE cases ADD COLUMN IF NOT EXISTS meet_code text;
     ALTER TABLE cases ADD COLUMN IF NOT EXISTS google_calendar_event_id text;
+    ALTER TABLE cases ADD COLUMN IF NOT EXISTS segmento text;
     -- Legacy contact_* / company_name: dropear con npm run db:migrate-contacts
 
     CREATE TABLE IF NOT EXISTS case_events (
@@ -242,6 +244,19 @@ async function ensurePgliteSchema(client: PGlite) {
   globalForDb.migrated = true;
 }
 
+/** Columnas nuevas en Postgres gestionado (Railway) — idempotente. */
+async function ensurePostgresColumns(sql: ReturnType<typeof postgres>) {
+  if (globalForDb.migrated) return;
+  await sql.unsafe(`
+    ALTER TABLE cases ADD COLUMN IF NOT EXISTS segmento text;
+    ALTER TABLE cases ADD COLUMN IF NOT EXISTS meet_code text;
+    ALTER TABLE cases ADD COLUMN IF NOT EXISTS google_calendar_event_id text;
+    ALTER TABLE cases ADD COLUMN IF NOT EXISTS lost_reason text;
+    ALTER TABLE cases ADD COLUMN IF NOT EXISTS assigned_consultant_id text;
+  `);
+  globalForDb.migrated = true;
+}
+
 export async function getDb(): Promise<Db> {
   if (globalForDb.drizzleDb) return globalForDb.drizzleDb;
 
@@ -264,6 +279,7 @@ export async function getDb(): Promise<Db> {
     globalForDb.pgClient ??
     postgres(connectionString, { max: 10, prepare: false });
   globalForDb.pgClient = client;
+  await ensurePostgresColumns(client);
   globalForDb.drizzleDb = drizzlePg(client, { schema });
   return globalForDb.drizzleDb;
 }

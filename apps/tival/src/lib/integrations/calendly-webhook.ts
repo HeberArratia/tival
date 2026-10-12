@@ -16,6 +16,7 @@ import {
   parseCalendlyInviteePayload,
   scheduledEventUuidFromCalendlyRef,
 } from "@/lib/integrations/calendly-parse";
+import { scheduleDiagnosticoEnrichmentJob } from "@/inngest/functions/enrich-diagnostico";
 import { scheduleMeetEnrichmentJob } from "@/inngest/functions/enrich-meet";
 import { getWorkspacePack } from "@/lib/workspace/registry";
 
@@ -265,6 +266,10 @@ export async function handleCalendlyWebhook(input: {
     await scheduleMeetEnrichmentJob(result.id, {
       calendlyEventUuid: eventUuid,
       reason: "schedule",
+    });
+    // Best-effort: segmento + answers desde Alfondo (no bloquea el lead).
+    await scheduleDiagnosticoEnrichmentJob(result.id, {
+      qualificationLogId: parsed.qualificationLogId,
     });
     return {
       status: 200 as const,

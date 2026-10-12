@@ -27,14 +27,29 @@ export function mapCalendlyQa(
   };
 }
 
+/** Filtra a la lista blanca del pack (si existe). */
+export function normalizeLandingSource(
+  raw: string | null | undefined,
+  allowed?: string[] | null
+): string | null {
+  if (!raw?.trim()) return null;
+  const value = raw.trim();
+  if (!allowed?.length) return value;
+  const allowedSet = new Set(allowed.map((s) => s.toLowerCase()));
+  return allowedSet.has(value.toLowerCase()) ? value : null;
+}
+
 export function resolveLandingSource(
   tracking: Record<string, unknown>,
   mapping: CalendlyInviteeMapping
 ): string | null {
-  const medium = tracking.utm_medium ? String(tracking.utm_medium) : null;
-  const source = tracking.utm_source ? String(tracking.utm_source) : null;
+  const medium = tracking.utm_medium ? String(tracking.utm_medium).trim() : null;
+  const source = tracking.utm_source ? String(tracking.utm_source).trim() : null;
   const mode = mapping.landingFromTracking ?? "either";
-  if (mode === "utm_medium") return medium ?? source;
-  if (mode === "utm_source") return source ?? medium;
-  return medium ?? source;
+  // utm_medium: solo medium (no caer a utm_source=alfondo).
+  let raw: string | null;
+  if (mode === "utm_medium") raw = medium || null;
+  else if (mode === "utm_source") raw = source || medium || null;
+  else raw = medium || source || null;
+  return normalizeLandingSource(raw, mapping.allowedLandings);
 }

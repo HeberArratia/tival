@@ -34,6 +34,7 @@ import {
   StageRail,
 } from "@/components/ProcessUI";
 import { ClosingScoreEditor } from "@/components/ClosingScoreEditor";
+import { DiagnosticoEnrichmentPanel } from "@/components/DiagnosticoAnswers";
 import {
   OpportunityExtras,
   OpportunityFieldValues,
@@ -226,7 +227,14 @@ export default async function IniciativaOportunidadPage({
 
         <div style={{ marginBottom: "1rem" }}>
           <InitiativePill initiative={ini} />{" "}
-          <SegmentPill segment={seg} />{" "}
+          <SegmentPill
+            segment={seg}
+            label={
+              typeof qualification.segmento_label === "string"
+                ? qualification.segmento_label
+                : null
+            }
+          />{" "}
           {["cancelled", "no_show", "rescheduled_away"].includes(c.status) ? (
             <StatusPill status={c.status} />
           ) : null}{" "}
@@ -457,8 +465,14 @@ export default async function IniciativaOportunidadPage({
                     ) : null}
                   </div>
 
+                  <DiagnosticoEnrichmentPanel
+                    qualification={qualification}
+                    landingSource={c.landingSource}
+                    segmento={c.segmento}
+                  />
+
                   {isConsultoria ? (
-                    <div className="panel">
+                    <div className="panel" style={{ marginTop: "1rem" }}>
                       <p className="panel-kicker">Closing score</p>
                       <h3>Temperatura comercial</h3>
                       <p className="lede" style={{ marginTop: "0.35rem" }}>

@@ -47,7 +47,11 @@ import {
   isMemberId,
   memberById,
 } from "@/lib/members";
-import { defaultWorkspaceSlug } from "@/lib/workspace/registry";
+import { normalizeLandingSource } from "@/lib/workspace/calendly-map";
+import {
+  defaultWorkspaceSlug,
+  getWorkspacePack,
+} from "@/lib/workspace/registry";
 
 export const TIMEZONE = "America/Santiago";
 
@@ -1546,6 +1550,113 @@ export async function findCaseByCalendlyUuid(uuid: string) {
     .where(eq(cases.calendlyEventUuid, uuid))
     .limit(1);
   return row ?? null;
+}
+
+/**
+ * Persiste enrichment del wizard Alfondo (segmento + answers).
+ * Best-effort: el case ya existe; fallos no deshacen el intake.
+ */
+export async function applyDiagnosticoEnrichment(
+  input:
+    | {
+        caseId: string;
+        diagnosticoLogId: string;
+        segmento: string;
+        segmentoLabel?: string | null;
+        fitInnovacion?: string | null;
+        fitInnovacionLabel?: string | null;
+        wizardKind?: string | null;
+        schemaVersion?: string | null;
+        landingSource?: string | null;
+        calendlyRoute?: string | null;
+        answers?: Record<string, unknown> | null;
+        wizardCreatedAt?: string | null;
+        failed?: false;
+      }
+    | {
+        caseId: string;
+        failed: true;
+        error: string;
+        diagnosticoLogId?: string | null;
+      }
+): Promise<CaseRow | null> {
+  const db = await getDb();
+  const [current] = await db
+    .select()
+    .from(cases)
+    .where(eq(cases.id, input.caseId))
+    .limit(1);
+  if (!current) return null;
+
+  if (input.failed) {
+    await appendEvent(
+      current.id,
+      "diagnostico_enrich_failed",
+      {
+        error: input.error,
+        diagnosticoLogId: input.diagnosticoLogId ?? current.qualificationLogId,
+      },
+      "integracion"
+    );
+    return current;
+  }
+
+  const enrichedAt = new Date().toISOString();
+  const qualification = {
+    ...(current.qualification ?? {}),
+    segmento: input.segmento,
+    segmento_label: input.segmentoLabel ?? null,
+    fit_innovacion: input.fitInnovacion ?? null,
+    fit_innovacion_label: input.fitInnovacionLabel ?? null,
+    wizardKind: input.wizardKind ?? null,
+    schemaVersion: input.schemaVersion ?? null,
+    diagnostico_answers: input.answers ?? null,
+    diagnostico_enriched_at: enrichedAt,
+    wizard_created_at: input.wizardCreatedAt ?? null,
+  };
+
+  const allowedLandings =
+    getWorkspacePack().calendlyMapping.allowedLandings ?? null;
+  const fromApi = normalizeLandingSource(
+    input.landingSource,
+    allowedLandings
+  );
+  const currentLanding = normalizeLandingSource(
+    current.landingSource,
+    allowedLandings
+  );
+  // Preferir API; si API no trae landing, no conservar ruido (ej. "alfondo").
+  const nextLanding = fromApi ?? currentLanding;
+
+  const [updated] = await db
+    .update(cases)
+    .set({
+      segmento: input.segmento,
+      qualificationLogId:
+        input.diagnosticoLogId || current.qualificationLogId,
+      landingSource: nextLanding,
+      calendlyRoute:
+        input.calendlyRoute?.trim() || current.calendlyRoute,
+      qualification,
+      updatedAt: new Date(),
+    })
+    .where(eq(cases.id, current.id))
+    .returning();
+
+  await appendEvent(
+    updated.id,
+    "diagnostico_enriched",
+    {
+      diagnosticoLogId: input.diagnosticoLogId,
+      segmento: input.segmento,
+      segmentoLabel: input.segmentoLabel ?? null,
+      landingSource: input.landingSource ?? null,
+      wizardKind: input.wizardKind ?? null,
+    },
+    "integracion"
+  );
+
+  return updated;
 }
 
 /** Persiste Meet real (o falla) tras enrichment Calendly → Calendar. */

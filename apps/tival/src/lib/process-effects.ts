@@ -605,6 +605,16 @@ const EVENT_LABELS: Record<
     kind: "efecto",
     result: "fail",
   },
+  diagnostico_enriched: {
+    title: "Efecto · Diagnóstico Alfondo enriquecido",
+    kind: "efecto",
+    result: "ok",
+  },
+  diagnostico_enrich_failed: {
+    title: "Efecto · Enrichment diagnóstico falló",
+    kind: "efecto",
+    result: "fail",
+  },
   no_show_marked: {
     title: "Humano · no-show",
     kind: "humano",

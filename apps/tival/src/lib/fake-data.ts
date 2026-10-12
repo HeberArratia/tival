@@ -21,7 +21,7 @@ import {
   type OpportunityFieldDef,
 } from "@/lib/opportunity-fields";
 import type { SegmentId, SegmentMode } from "@/lib/segments";
-import { segmentById } from "@/lib/segments";
+import { resolveCaseSegment, segmentById } from "@/lib/segments";
 import { getWorkspacePack } from "@/lib/workspace/registry";
 
 const hours = (h: number) => new Date(Date.now() + h * 3600_000);
@@ -589,9 +589,14 @@ export function opportunityHref(caseRow: {
 }
 
 /** Segmento resuelto en la oportunidad (UI). */
-export function segmentForCase(caseRow: { id: string }) {
-  const id = CASE_SEGMENT[caseRow.id];
-  return segmentById(id);
+export function segmentForCase(caseRow: {
+  id: string;
+  segmento?: string | null;
+  qualification?: Record<string, unknown> | null;
+}) {
+  const fakeId = CASE_SEGMENT[caseRow.id];
+  if (fakeId) return segmentById(fakeId);
+  return resolveCaseSegment(caseRow);
 }
 
 export type ResolvedOpportunityField = {
@@ -682,6 +687,7 @@ export function extrasForCase(caseRow: {
   qualification?: Record<string, unknown> | null;
   landingSource?: string | null;
   calendlyEventUuid?: string | null;
+  segmento?: string | null;
 }) {
   const fromFake = CASE_EXTRAS[caseRow.id];
   if (fromFake) return fromFake;
@@ -691,6 +697,13 @@ export function extrasForCase(caseRow: {
   if (caseRow.landingSource) extras.landing_source = caseRow.landingSource;
   if (caseRow.calendlyEventUuid)
     extras.calendly_event_uuid = caseRow.calendlyEventUuid;
+  if (typeof caseRow.segmento === "string" && caseRow.segmento) {
+    extras.segmento = caseRow.segmento;
+  } else if (typeof q.segmento === "string" && q.segmento) {
+    extras.segmento = q.segmento;
+  }
+  if (typeof q.segmento_label === "string")
+    extras.segmento_label = q.segmento_label;
   if (typeof q.host_email === "string") extras.host = q.host_email;
   const tracking = q.tracking as Record<string, unknown> | undefined;
   if (tracking?.utm_campaign)
@@ -980,6 +993,7 @@ function base(
     qualification: { biz: "biz_tech_company", goal: "goal_innovation" },
     landingSource: "diagnostico-innovacion",
     qualificationLogId: null,
+    segmento: null,
     paymentMethod: null,
     paymentStatus: "none",
     mpPaymentId: null,
