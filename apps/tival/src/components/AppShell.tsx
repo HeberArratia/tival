@@ -178,6 +178,39 @@ export function StatusPill({ status }: { status: string }) {
   );
 }
 
+/** Pedido de pago por WhatsApp — solo Lead entrante. */
+export function PaymentRequestPill({
+  status,
+}: {
+  status: "sent" | "failed" | "none";
+}) {
+  if (status === "sent") {
+    return (
+      <span className="pill pill-ok" title="Ya se pidió el pago por WhatsApp">
+        solicitado
+      </span>
+    );
+  }
+  if (status === "failed") {
+    return (
+      <span
+        className="pill pill-wait"
+        title="El WhatsApp de pedido de pago no se envió"
+      >
+        falló
+      </span>
+    );
+  }
+  return (
+    <span
+      className="pill pill-warn"
+      title="Todavía no se pidió el pago por WhatsApp"
+    >
+      no solicitado
+    </span>
+  );
+}
+
 export function LostReasonPill({
   reason,
 }: {

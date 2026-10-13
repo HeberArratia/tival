@@ -5,12 +5,15 @@ import {
   getPlaybookBundle,
   listCases,
   listFakePlaybooks,
+  paymentRequestStatusByCaseIds,
   type CaseWithIdentity,
+  type PaymentRequestStatus,
 } from "@/lib/cases";
 import {
   AppShell,
   ClosingScorePill,
   LostReasonPill,
+  PaymentRequestPill,
   SegmentPill,
   StatusPill,
   Topbar,
@@ -101,6 +104,7 @@ function HandoffCaseRow({
   actions,
   productOptions,
   consultants,
+  paymentRequest,
 }: {
   c: CaseWithIdentity;
   stage: PlaybookStage | null;
@@ -108,6 +112,7 @@ function HandoffCaseRow({
   actions: HandoffActionId[];
   productOptions: ProductOption[];
   consultants: { id: string; name: string }[];
+  paymentRequest?: PaymentRequestStatus;
 }) {
   const segInfo = caseSegmentInfo(c);
   const consultant = memberById(c.assignedConsultantId);
@@ -140,6 +145,9 @@ function HandoffCaseRow({
           {c.lostReason ? <LostReasonPill reason={c.lostReason} /> : null}
           {c.paymentStatus === "pending" ? (
             <span className="pill pill-warn">espera pago</span>
+          ) : null}
+          {stage?.key === "lead" ? (
+            <PaymentRequestPill status={paymentRequest ?? "none"} />
           ) : null}
           {stage ? <span className="pill">{stage.name}</span> : null}
           {consultant ? (
@@ -326,6 +334,12 @@ export default async function DiagnosticoInnovacionCanvasPage({
   ).map(toProductOption);
 
   const stages = meta?.stages ?? [];
+  const leadCaseIds = opportunities
+    .filter((c) => stageForCase(stages, c)?.key === "lead")
+    .map((c) => c.id);
+  const paymentRequestByCase = await paymentRequestStatusByCaseIds(
+    leadCaseIds
+  ).catch(() => new Map<string, PaymentRequestStatus>());
   const consultants = (await membersWithRole("consultor")).map((m) => ({
     id: m.id,
     name: m.name,
@@ -488,6 +502,7 @@ export default async function DiagnosticoInnovacionCanvasPage({
                 opportunities={filtered}
                 quiet
                 productOptions={productOptions}
+                paymentRequestByCase={paymentRequestByCase}
               />
             ) : view === "handoff" ? (
               handoffPendingCount === 0 ? (
@@ -537,6 +552,7 @@ export default async function DiagnosticoInnovacionCanvasPage({
                                 actions={ops}
                                 productOptions={productOptions}
                                 consultants={consultants}
+                                paymentRequest={paymentRequestByCase.get(c.id)}
                               />
                             );
                           })
@@ -580,6 +596,7 @@ export default async function DiagnosticoInnovacionCanvasPage({
                               actions={consultor}
                               productOptions={productOptions}
                               consultants={consultants}
+                              paymentRequest={paymentRequestByCase.get(c.id)}
                             />
                           );
                         })

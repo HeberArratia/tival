@@ -1527,6 +1527,62 @@ export async function markWon(input: {
   return updated;
 }
 
+/** Pedido de pago por WhatsApp (efecto Moira) en Lead entrante. */
+export type PaymentRequestStatus = "sent" | "failed" | "none";
+
+const PAYMENT_REQUEST_EVENT_TYPES = [
+  "whatsapp_payment_request_sent",
+  "whatsapp_payment_request_failed",
+] as const;
+
+/**
+ * Si el efecto de pedir pago por WhatsApp ya corrió.
+ * `sent` gana si hubo al menos un envío ok, aunque después haya fallado un reintento.
+ */
+export async function paymentRequestStatusByCaseIds(
+  caseIds: string[]
+): Promise<Map<string, PaymentRequestStatus>> {
+  const map = new Map<string, PaymentRequestStatus>();
+  if (caseIds.length === 0) return map;
+
+  if (isFakeDataEnabled()) {
+    for (const id of caseIds) {
+      const events = fakeEventsFor(id);
+      const sent = events.some((e) => e.type === "whatsapp_payment_request_sent");
+      const failed = events.some(
+        (e) => e.type === "whatsapp_payment_request_failed"
+      );
+      map.set(id, sent ? "sent" : failed ? "failed" : "none");
+    }
+    return map;
+  }
+
+  const db = await getDb();
+  const rows = await db
+    .select({
+      caseId: caseEvents.caseId,
+      type: caseEvents.type,
+    })
+    .from(caseEvents)
+    .where(
+      and(
+        inArray(caseEvents.caseId, caseIds),
+        inArray(caseEvents.type, [...PAYMENT_REQUEST_EVENT_TYPES])
+      )
+    );
+
+  const sent = new Set<string>();
+  const failed = new Set<string>();
+  for (const row of rows) {
+    if (row.type === "whatsapp_payment_request_sent") sent.add(row.caseId);
+    else if (row.type === "whatsapp_payment_request_failed") failed.add(row.caseId);
+  }
+  for (const id of caseIds) {
+    map.set(id, sent.has(id) ? "sent" : failed.has(id) ? "failed" : "none");
+  }
+  return map;
+}
+
 export async function listCases(filters?: {
   status?: CaseStatus | CaseStatus[];
 }): Promise<CaseWithIdentity[]> {

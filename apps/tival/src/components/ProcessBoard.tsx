@@ -3,6 +3,7 @@ import type { PlaybookStage } from "@/db/schema";
 import {
   ClosingScorePill,
   InitiativePill,
+  PaymentRequestPill,
   SegmentPill,
   StatusPill,
   LostReasonPill,
@@ -13,6 +14,7 @@ import { StageRecipeChips } from "@/components/ProcessUI";
 import {
   caseTitle,
   type CaseWithIdentity,
+  type PaymentRequestStatus,
 } from "@/lib/cases";
 import {
   initiativeForCase,
@@ -50,6 +52,7 @@ export function ProcessBoard({
   /** Canvas ops: sin chips de recipe por columna */
   quiet = false,
   productOptions = [],
+  paymentRequestByCase,
 }: {
   stages: PlaybookStage[];
   opportunities: CaseWithIdentity[];
@@ -57,6 +60,8 @@ export function ProcessBoard({
   showInitiative?: boolean;
   quiet?: boolean;
   productOptions?: ProductOption[];
+  /** Solo se pinta en la columna Lead entrante. */
+  paymentRequestByCase?: ReadonlyMap<string, PaymentRequestStatus>;
 }) {
   const byStage = new Map<string, CaseWithIdentity[]>();
   for (const s of stages) byStage.set(s.id, []);
@@ -251,6 +256,13 @@ export function ProcessBoard({
                           ) : null}
                           {c.lostReason ? (
                             <LostReasonPill reason={c.lostReason} />
+                          ) : null}
+                          {s.key === "lead" ? (
+                            <PaymentRequestPill
+                              status={
+                                paymentRequestByCase?.get(c.id) ?? "none"
+                              }
+                            />
                           ) : null}
                         </div>
                       </Link>
