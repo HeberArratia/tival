@@ -650,6 +650,21 @@ const EVENT_LABELS: Record<
     kind: "efecto",
     result: "fail",
   },
+  consultant_meet_access_granted: {
+    title: "Efecto · consultor invitado a Calendar",
+    kind: "efecto",
+    result: "ok",
+  },
+  consultant_meet_access_skipped: {
+    title: "Efecto · invite Calendar consultor omitido",
+    kind: "efecto",
+    result: "info",
+  },
+  consultant_meet_access_failed: {
+    title: "Efecto · invite Calendar consultor falló",
+    kind: "efecto",
+    result: "fail",
+  },
   marked_won: {
     title: "Humano · ganado",
     kind: "humano",

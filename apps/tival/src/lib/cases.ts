@@ -1448,29 +1448,24 @@ export async function assignConsultant(input: {
     actor
   );
 
-  // Calendar invite + Meet COHOST (best-effort; fuera del request HTTP).
-  const grantCaseId = updated.id;
-  const grantConsultantId = input.consultantId;
-  const grantPrevious = current.assignedConsultantId;
-  const grantActor = actor;
-  setTimeout(() => {
-    void import("@/lib/integrations/grant-consultant-meet-access")
-      .then(({ scheduleGrantConsultantMeetAccess }) =>
-        scheduleGrantConsultantMeetAccess({
-          caseId: grantCaseId,
-          consultantId: grantConsultantId,
-          previousConsultantId: grantPrevious,
-          actor: grantActor,
-        })
-      )
-      .catch((err) => {
-        console.error(
-          "[assignConsultant.grant]",
-          grantCaseId,
-          err instanceof Error ? err.message : err
-        );
-      });
-  }, 0);
+  // Calendar invite (Inngest; inline si send disabled). COHOST Meet = best-effort.
+  try {
+    const { scheduleGrantConsultantMeetAccessJob } = await import(
+      "@/inngest/functions/grant-consultant-meet-access"
+    );
+    await scheduleGrantConsultantMeetAccessJob({
+      caseId: updated.id,
+      consultantId: input.consultantId,
+      previousConsultantId: current.assignedConsultantId,
+      actor,
+    });
+  } catch (err) {
+    console.error(
+      "[assignConsultant.grant]",
+      updated.id,
+      err instanceof Error ? err.message : err
+    );
+  }
 
   // Slack vía n8n (mención <@U…>); no bloquea la asignación.
   void import("@/lib/integrations/n8n-consultant-assigned-notice")
@@ -1794,7 +1789,7 @@ export async function applyMeetEnrichment(
     schedulePostMeetCollect(updated.id)
   );
 
-  // Si ya había consultor asignado antes del enrichment, otorgar COHOST ahora.
+  // Si ya había consultor asignado antes del enrichment, invitar a Calendar.
   void import("@/lib/integrations/grant-consultant-meet-access").then(
     ({ scheduleGrantIfConsultantAssigned }) =>
       scheduleGrantIfConsultantAssigned(updated)

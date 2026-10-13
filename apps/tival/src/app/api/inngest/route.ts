@@ -2,6 +2,7 @@ import { serve } from "inngest/next";
 import { inngest } from "@/inngest/client";
 import { enrichDiagnosticoArtifacts } from "@/inngest/functions/enrich-diagnostico";
 import { enrichMeetArtifacts } from "@/inngest/functions/enrich-meet";
+import { grantConsultantMeetAccessFn } from "@/inngest/functions/grant-consultant-meet-access";
 import { remindMeetingWhatsapp } from "@/inngest/functions/meeting-remind";
 import { collectPostMeetArtifacts } from "@/inngest/functions/post-meet-collect";
 import { notifyRescheduleWhatsappFn } from "@/inngest/functions/reschedule-notify";
@@ -20,5 +21,6 @@ export const { GET, POST, PUT } = serve({
     collectPostMeetArtifacts,
     remindMeetingWhatsapp,
     notifyRescheduleWhatsappFn,
+    grantConsultantMeetAccessFn,
   ],
 });

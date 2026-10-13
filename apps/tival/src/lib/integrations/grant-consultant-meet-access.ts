@@ -1,6 +1,7 @@
 /**
- * Al asignar consultor: invitar al evento Calendar + COHOST en Meet.
- * Best-effort: no revierte la asignación CRM si Google falla.
+ * Al asignar consultor: invitar al evento Calendar (+ COHOST Meet best-effort).
+ * Éxito = attendee en Calendar. COHOST no bloquea (scopes Meet a menudo fallan).
+ * No revierte la asignación CRM si Google falla.
  */
 
 import { eq } from "drizzle-orm";
@@ -18,15 +19,25 @@ import {
 } from "@/lib/integrations/google-meet/client";
 import { ensureMemberIsConsultor, listMembers } from "@/lib/members";
 
+export type GrantCohostResult =
+  | {
+      ok: true;
+      skipped: false;
+      cohostEmail: string;
+      spaceName: string;
+      alreadyCohost: boolean;
+    }
+  | { ok: true; skipped: true; reason: string }
+  | { ok: false; error: string; step?: string; status?: number };
+
 export type GrantConsultantMeetAccessResult =
   | {
       ok: true;
       skipped: false;
       calendarAdded: string[];
       calendarRemoved: string[];
-      cohostEmail: string;
-      spaceName: string;
-      alreadyCohost: boolean;
+      consultantEmail: string;
+      cohost: GrantCohostResult;
     }
   | {
       ok: true;
@@ -63,6 +74,53 @@ async function resolvePreviousConsultantEmail(
   return email;
 }
 
+async function tryGrantCohost(input: {
+  accessToken: string;
+  meetCode: string | null;
+  email: string;
+  previousEmail: string | null;
+}): Promise<GrantCohostResult> {
+  if (!input.meetCode) {
+    return { ok: true, skipped: true, reason: "meet_code_missing" };
+  }
+
+  const space = await getSpaceByMeetingCode({
+    accessToken: input.accessToken,
+    meetingCode: input.meetCode,
+  });
+  if (!space.ok) {
+    return {
+      ok: false,
+      error: space.error,
+      status: space.status,
+      step: "meet_space",
+    };
+  }
+
+  const cohost = await ensureSpaceCohost({
+    accessToken: input.accessToken,
+    spaceName: space.space.name,
+    email: input.email,
+    previousEmails: input.previousEmail ? [input.previousEmail] : [],
+  });
+  if (!cohost.ok) {
+    return {
+      ok: false,
+      error: cohost.error,
+      status: cohost.status,
+      step: cohost.step ?? "meet_cohost",
+    };
+  }
+
+  return {
+    ok: true,
+    skipped: false,
+    cohostEmail: input.email,
+    spaceName: space.space.name,
+    alreadyCohost: cohost.alreadyCohost,
+  };
+}
+
 export async function grantConsultantMeetAccess(input: {
   caseId: string;
   consultantId: string;
@@ -87,11 +145,11 @@ export async function grantConsultantMeetAccess(input: {
     email
   );
 
-  if (!row.meetCode && !row.googleCalendarEventId) {
+  if (!row.googleCalendarEventId) {
     return {
       ok: true,
       skipped: true,
-      reason: "meet_not_enriched_yet",
+      reason: row.meetCode ? "calendar_event_missing" : "meet_not_enriched_yet",
     };
   }
 
@@ -119,76 +177,49 @@ export async function grantConsultantMeetAccess(input: {
     return { ok: false, error: message, step: "google_token" };
   }
 
-  let calendarAdded: string[] = [];
-  let calendarRemoved: string[] = [];
+  const patched = await patchCalendarEventAttendees({
+    accessToken,
+    eventId: row.googleCalendarEventId,
+    addEmails: [email],
+    removeEmails: previousEmail ? [previousEmail] : [],
+  });
+  if (!patched.ok) {
+    return {
+      ok: false,
+      error: patched.error,
+      status: patched.status,
+      step: "calendar_attendees",
+    };
+  }
 
-  if (row.googleCalendarEventId) {
-    const patched = await patchCalendarEventAttendees({
+  // COHOST: best-effort (permisos Meet a menudo insuficientes). No falla el grant.
+  let cohost: GrantCohostResult;
+  try {
+    cohost = await tryGrantCohost({
       accessToken,
-      eventId: row.googleCalendarEventId,
-      addEmails: [email],
-      removeEmails: previousEmail ? [previousEmail] : [],
+      meetCode: row.meetCode,
+      email,
+      previousEmail,
     });
-    if (!patched.ok) {
-      return {
-        ok: false,
-        error: patched.error,
-        status: patched.status,
-        step: "calendar_attendees",
-      };
-    }
-    calendarAdded = patched.added;
-    calendarRemoved = patched.removed;
-  }
-
-  if (!row.meetCode) {
-    return {
-      ok: true,
-      skipped: true,
-      reason: "meet_code_missing",
-    };
-  }
-
-  const space = await getSpaceByMeetingCode({
-    accessToken,
-    meetingCode: row.meetCode,
-  });
-  if (!space.ok) {
-    return {
+  } catch (e) {
+    cohost = {
       ok: false,
-      error: space.error,
-      status: space.status,
-      step: "meet_space",
-    };
-  }
-
-  const cohost = await ensureSpaceCohost({
-    accessToken,
-    spaceName: space.space.name,
-    email,
-    previousEmails: previousEmail ? [previousEmail] : [],
-  });
-  if (!cohost.ok) {
-    return {
-      ok: false,
-      error: cohost.error,
-      status: cohost.status,
-      step: cohost.step ?? "meet_cohost",
+      error: e instanceof Error ? e.message : "cohost_unexpected_error",
+      step: "meet_cohost",
     };
   }
 
   return {
     ok: true,
     skipped: false,
-    calendarAdded,
-    calendarRemoved,
-    cohostEmail: email,
-    spaceName: space.space.name,
-    alreadyCohost: cohost.alreadyCohost,
+    calendarAdded: patched.added,
+    calendarRemoved: patched.removed,
+    consultantEmail: email,
+    cohost,
   };
 }
 
-async function logGrantResult(
+export async function logGrantResult(
   caseId: string,
   result: GrantConsultantMeetAccessResult,
   actor: string,
@@ -215,11 +246,10 @@ async function logGrantResult(
       payload: {
         consultantId: meta.consultantId,
         previousConsultantId: meta.previousConsultantId ?? null,
-        cohostEmail: result.cohostEmail,
-        spaceName: result.spaceName,
-        alreadyCohost: result.alreadyCohost,
+        consultantEmail: result.consultantEmail,
         calendarAdded: result.calendarAdded,
         calendarRemoved: result.calendarRemoved,
+        cohost: result.cohost,
       },
       actor,
     });
@@ -239,54 +269,24 @@ async function logGrantResult(
   });
 }
 
-/** Fire-and-forget tras assignConsultant / meet enrich. */
-export function scheduleGrantConsultantMeetAccess(input: {
-  caseId: string;
-  consultantId: string;
-  previousConsultantId?: string | null;
-  actor?: string;
-}) {
-  const actor = input.actor ?? "integracion";
-  void grantConsultantMeetAccess(input)
-    .then((result) =>
-      logGrantResult(input.caseId, result, actor, {
-        consultantId: input.consultantId,
-        previousConsultantId: input.previousConsultantId,
-      })
-    )
-    .catch(async (err) => {
-      console.error(
-        "[grant-consultant-meet-access]",
-        input.caseId,
-        err instanceof Error ? err.message : err
-      );
-      try {
-        const db = await getDb();
-        await db.insert(caseEvents).values({
-          caseId: input.caseId,
-          type: "consultant_meet_access_failed",
-          payload: {
-            consultantId: input.consultantId,
-            previousConsultantId: input.previousConsultantId ?? null,
-            error: err instanceof Error ? err.message : "unknown_error",
-            step: "unexpected",
-          },
-          actor,
-        });
-      } catch {
-        // ignore secondary log failure
-      }
-    });
-}
-
-/** Si el case ya tiene consultor al enriquecer Meet, otorga acceso. */
+/** Si el case ya tiene consultor al enriquecer Meet, otorga acceso (vía Inngest). */
 export function scheduleGrantIfConsultantAssigned(row: CaseRow) {
   if (!row.assignedConsultantId) return;
-  if (!row.meetCode && !row.googleCalendarEventId) return;
-  scheduleGrantConsultantMeetAccess({
-    caseId: row.id,
-    consultantId: row.assignedConsultantId,
-    previousConsultantId: null,
-    actor: "integracion",
-  });
+  if (!row.googleCalendarEventId) return;
+  void import("@/inngest/functions/grant-consultant-meet-access")
+    .then(({ scheduleGrantConsultantMeetAccessJob }) =>
+      scheduleGrantConsultantMeetAccessJob({
+        caseId: row.id,
+        consultantId: row.assignedConsultantId!,
+        previousConsultantId: null,
+        actor: "integracion",
+      })
+    )
+    .catch((err) => {
+      console.error(
+        "[grant-if-consultant-assigned]",
+        row.id,
+        err instanceof Error ? err.message : err
+      );
+    });
 }
