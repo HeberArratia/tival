@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type MouseEvent } from "react";
+import { createPortal } from "react-dom";
 import { ClosingScorePicker } from "@/components/ClosingScorePicker";
 import { ProductSelect } from "@/components/ProductSelect";
 import { RegionSelect } from "@/components/RegionSelect";
@@ -112,30 +113,49 @@ async function postAction(
   action: string,
   payload?: {
     reason?: string;
+    notifyWhatsapp?: boolean;
     closingScore?: string | null;
     region?: string | null;
     productKeys?: string[] | null;
     consultantId?: string | null;
     segmento?: string | null;
   }
-): Promise<{ ok: boolean; status: number; error?: string }> {
+): Promise<{
+  ok: boolean;
+  status: number;
+  error?: string;
+  whatsappError?: string;
+}> {
   const res = await fetch(`/api/cases/${caseId}/actions`, {
     method: "POST",
     credentials: "same-origin",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action, ...payload }),
   });
-  if (res.ok) return { ok: true, status: res.status };
-
   const text = await res.text().catch(() => "");
-  let error = `http_${res.status}`;
+  type ActionBody = {
+    error?: string;
+    whatsapp?: { ok?: boolean; error?: string } | null;
+  };
+  let data: ActionBody | null = null;
   try {
-    const data = text ? (JSON.parse(text) as { error?: string }) : null;
-    if (data?.error) error = data.error;
-    else if (!text) error = "empty_body";
+    data = text ? (JSON.parse(text) as ActionBody) : null;
   } catch {
-    error = text ? `non_json:${text.slice(0, 120)}` : "empty_body";
+    data = null;
   }
+
+  if (res.ok) {
+    const whatsappError =
+      data?.whatsapp && data.whatsapp.ok === false
+        ? data.whatsapp.error
+        : undefined;
+    return { ok: true, status: res.status, whatsappError };
+  }
+
+  let error = `http_${res.status}`;
+  if (data?.error) error = data.error;
+  else if (!text) error = "empty_body";
+  else if (!data) error = `non_json:${text.slice(0, 120)}`;
   // String only — evita overlay de Next que colapsa objetos a "{}"
   console.warn(`[CaseAction:${action}] ${res.status} ${error}`);
   return { ok: false, status: res.status, error };
@@ -419,20 +439,33 @@ export function MarkLostButton({
   status,
   paymentStatus,
   stageKey,
+  hasPhone = false,
   className = "btn",
   stopPropagation = false,
   reason,
+  onConfirmOpenChange,
 }: {
   caseId: string;
   status: string;
   paymentStatus: string;
   stageKey?: string;
+  hasPhone?: boolean;
   className?: string;
   stopPropagation?: boolean;
   reason?: string;
+  /** Avisa al menú padre para no desmontar mientras el modal está abierto. */
+  onConfirmOpenChange?: (open: boolean) => void;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [notifyWhatsapp, setNotifyWhatsapp] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   if (!canMarkLost({ status, paymentStatus, stageKey })) return null;
 
@@ -441,6 +474,7 @@ export function MarkLostButton({
   const resolvedReason =
     reason ??
     (isNoShow ? "no_asistio" : isPostProposal ? "no_compra" : "no_pago");
+  const isNoPago = resolvedReason === "no_pago";
   const label = isNoShow
     ? "Perdido · no asistió"
     : isPostProposal
@@ -448,12 +482,32 @@ export function MarkLostButton({
       : "No pagó";
   const action = isNoShow ? "no_show_lost" : "mark_lost";
 
-  async function run(e: MouseEvent) {
+  function setConfirmOpen(next: boolean) {
+    setOpen(next);
+    onConfirmOpenChange?.(next);
+  }
+
+  function openConfirm(e: MouseEvent) {
+    if (isNoPago) {
+      // Cortar burbuja: Acciones cierra el menú y desmontaba este botón
+      // antes de que el modal pudiera montarse.
+      e.preventDefault();
+      e.stopPropagation();
+      setError(null);
+      setNotifyWhatsapp(false);
+      setConfirmOpen(true);
+      return;
+    }
     if (stopPropagation) {
       e.preventDefault();
       e.stopPropagation();
     }
+    void runDirect();
+  }
+
+  async function runDirect() {
     setLoading(true);
+    setError(null);
     try {
       if (action === "no_show_lost") {
         await postAction(caseId, "no_show_lost");
@@ -466,22 +520,142 @@ export function MarkLostButton({
     }
   }
 
-  return (
-    <button
-      type="button"
-      className={className}
-      disabled={loading}
-      onClick={run}
-      title={
-        isNoShow
-          ? "Cierra sin chance de reagenda · Perdido / no asistió"
-          : isPostProposal
-            ? "No compró · pasa a Perdido"
-            : "Marca como perdido (sin pago). Pasa a la etapa Perdido."
+  async function confirmNoPago() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await postAction(caseId, "mark_lost", {
+        reason: "no_pago",
+        notifyWhatsapp,
+      });
+      if (!res.ok) {
+        setError(
+          WHATSAPP_ERROR_LABEL[res.error ?? ""] ??
+            res.error ??
+            "No se pudo marcar perdido"
+        );
+        return;
       }
-    >
-      {loading ? "…" : label}
-    </button>
+      if (res.whatsappError) {
+        setError(
+          WHATSAPP_ERROR_LABEL[res.whatsappError] ??
+            `Marcado perdido, pero WhatsApp falló: ${res.whatsappError}`
+        );
+      }
+      setConfirmOpen(false);
+      router.refresh();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const modal =
+    open && mounted
+      ? createPortal(
+          <div
+            className="modal-backdrop"
+            role="presentation"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!loading) setConfirmOpen(false);
+            }}
+          >
+            <div
+              className="modal-panel"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="no-pago-modal-title"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <p className="panel-kicker">Lead entrante</p>
+              <h3 id="no-pago-modal-title">¿Seguro que quiere hacerlo?</h3>
+              <p className="lede" style={{ marginTop: "0.35rem" }}>
+                La oportunidad pasa a Perdido y se cancela la reunión en
+                Calendar / Meet.
+              </p>
+
+              <label
+                className="modal-switch-row"
+                htmlFor="no-pago-notify-whatsapp"
+                title={
+                  hasPhone
+                    ? "Envía el template de sesión cancelada por WhatsApp"
+                    : "Sin teléfono en el contacto"
+                }
+              >
+                <span>
+                  Avisar vía WhatsApp
+                  {!hasPhone ? (
+                    <span className="row-meta" style={{ display: "block" }}>
+                      Sin teléfono en el contacto
+                    </span>
+                  ) : null}
+                </span>
+                <input
+                  id="no-pago-notify-whatsapp"
+                  type="checkbox"
+                  role="switch"
+                  checked={notifyWhatsapp}
+                  disabled={loading || !hasPhone}
+                  onChange={(e) => setNotifyWhatsapp(e.target.checked)}
+                />
+              </label>
+
+              {error ? (
+                <p
+                  className="row-meta"
+                  style={{
+                    color: "var(--danger, #b33)",
+                    marginTop: "0.65rem",
+                  }}
+                >
+                  {error}
+                </p>
+              ) : null}
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={loading}
+                  onClick={() => setConfirmOpen(false)}
+                >
+                  No
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={loading}
+                  onClick={() => void confirmNoPago()}
+                >
+                  {loading ? "…" : "Sí, marcar no pagó"}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
+
+  return (
+    <>
+      <button
+        type="button"
+        className={className}
+        disabled={loading}
+        onClick={openConfirm}
+        title={
+          isNoShow
+            ? "Cierra sin chance de reagenda · Perdido / no asistió"
+            : isPostProposal
+              ? "No compró · pasa a Perdido"
+              : "Marca como perdido (sin pago). Pasa a la etapa Perdido."
+        }
+      >
+        {loading && !open ? "…" : label}
+      </button>
+      {modal}
+    </>
   );
 }
 
@@ -1084,6 +1258,7 @@ export function CaseActions({
   stageKey,
   canGenerateProposal = false,
   hasScheduledAt = false,
+  hasPhone = false,
   calendlyLink = null,
 }: {
   caseId: string;
@@ -1092,9 +1267,12 @@ export function CaseActions({
   stageKey?: string;
   canGenerateProposal?: boolean;
   hasScheduledAt?: boolean;
+  hasPhone?: boolean;
   calendlyLink?: string | null;
 }) {
   const [open, setOpen] = useState(false);
+  /** Mantener MarkLost montado mientras su modal esté abierto (el menú se cierra). */
+  const [lostConfirmOpen, setLostConfirmOpen] = useState(false);
 
   const showNoShow = canOfferReschedule({ status, stageKey, hasScheduledAt });
   const showNoShowLost = canMarkNoShowActions({
@@ -1115,6 +1293,8 @@ export function CaseActions({
 
   if (!hasAnything) return null;
 
+  const showMenu = open || lostConfirmOpen;
+
   return (
     <div className="case-actions" style={{ position: "relative" }}>
       <button
@@ -1126,10 +1306,11 @@ export function CaseActions({
       >
         Acciones{open ? " ▴" : " ▾"}
       </button>
-      {open ? (
+      {showMenu ? (
         <div
           className="case-actions-menu"
           role="menu"
+          hidden={!open}
           onClick={() => setOpen(false)}
         >
           <MarkNoShowRescheduleButton
@@ -1151,7 +1332,12 @@ export function CaseActions({
             status={status}
             paymentStatus={paymentStatus}
             stageKey={stageKey}
+            hasPhone={hasPhone}
             className={MENU_ITEM}
+            onConfirmOpenChange={(next) => {
+              setLostConfirmOpen(next);
+              if (next) setOpen(false);
+            }}
           />
           <CancelSupersededButton
             caseId={caseId}

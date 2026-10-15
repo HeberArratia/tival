@@ -281,6 +281,12 @@ const RECIPE_BY_STAGE_KEY: Record<string, StageRecipe> = {
         via: "Integración",
         status: "live",
       },
+      {
+        id: "whatsapp-no-pago",
+        label: "WhatsApp · sesión cancelada (si ops marca avisar)",
+        via: "Integración",
+        status: "live",
+      },
     ],
   },
   inbound: {
@@ -634,6 +640,16 @@ const EVENT_LABELS: Record<
     title: "Humano · perdido",
     kind: "humano",
     result: "ok",
+  },
+  whatsapp_no_pago_cancelled_sent: {
+    title: "Efecto · WhatsApp sesión cancelada (no pago)",
+    kind: "efecto",
+    result: "ok",
+  },
+  whatsapp_no_pago_cancelled_failed: {
+    title: "Efecto · WhatsApp sesión cancelada falló",
+    kind: "efecto",
+    result: "fail",
   },
   meeting_canceled: {
     title: "Efecto · reunión Calendar/Meet cancelada",

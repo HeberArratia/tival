@@ -213,6 +213,9 @@ export default async function IniciativaOportunidadPage({
               paymentStatus={c.paymentStatus}
               stageKey={currentStage?.key}
               hasScheduledAt={Boolean(c.scheduledAt)}
+              hasPhone={Boolean(
+                c.contact?.primaryPhone ?? phones[0]?.phone
+              )}
               calendlyLink={reagendaShareLink}
               canGenerateProposal={canGenerateProposal}
             />

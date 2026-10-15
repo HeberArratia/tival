@@ -2,6 +2,7 @@
  * Envío WhatsApp vía Kapso (Cloud API proxy).
  * - Pedido de comprobante (lead)
  * - Confirmación de pago + Meet (markPaid)
+ * - Cancelación por no pago (markLost · no_pago, opcional)
  * - Aviso propuesta enviada al correo (markPropuestaEnviada)
  * - Recordatorio T-1h (Inngest, solo pagados)
  * - Reagenda post-enrich (Inngest, solo pagados)
@@ -30,6 +31,8 @@ const PAYMENT_CONFIRMED_TEMPLATE = "pago_diagnostico_confirmado";
 const PROPUESTA_ENVIADA_TEMPLATE = "propuesta_enviada_diagnostico";
 const MEETING_REMIND_TEMPLATE = "recordatorio_diagnostico_1h";
 const RESCHEDULE_TEMPLATE = "reagenda_diagnostico";
+/** Cancelación por falta de confirmación de pago (ops · No pagó). */
+const NO_PAGO_CANCELLED_TEMPLATE = "sesion_cancelada_no_pago";
 const TEMPLATE_LANGUAGE = "es";
 
 const CLOSED_STATUSES = ["cancelled", "no_show", "rescheduled_away"] as const;
@@ -101,8 +104,9 @@ async function sendTemplate(input: {
   creds: KapsoCredentials;
   to: string;
   template: string;
-  parameters: { parameter_name: string; text: string }[];
+  parameters?: { parameter_name: string; text: string }[];
 }): Promise<KapsoSendResult> {
+  const parameters = input.parameters ?? [];
   const res = await fetch(
     `${KAPSO_BASE}/${input.creds.phoneNumberId}/messages`,
     {
@@ -118,16 +122,20 @@ async function sendTemplate(input: {
         template: {
           name: input.template,
           language: { code: TEMPLATE_LANGUAGE },
-          components: [
-            {
-              type: "body",
-              parameters: input.parameters.map((p) => ({
-                type: "text",
-                parameter_name: p.parameter_name,
-                text: p.text,
-              })),
-            },
-          ],
+          ...(parameters.length
+            ? {
+                components: [
+                  {
+                    type: "body",
+                    parameters: parameters.map((p) => ({
+                      type: "text",
+                      parameter_name: p.parameter_name,
+                      text: p.text,
+                    })),
+                  },
+                ],
+              }
+            : {}),
         },
       }),
     }
@@ -246,6 +254,78 @@ export async function requestPaymentProofWhatsapp(input: {
   });
 
   return { ok: true, to, wamid: sent.wamid, nombre, fecha, hora };
+}
+
+export type NoPagoCancelledWhatsappResult =
+  | { ok: true; to: string; wamid: string | null }
+  | { ok: false; error: string };
+
+/**
+ * Aviso al lead al marcar No pagó · sesión cancelada por falta de confirmación.
+ * No bloquea markLost si Kapso falla.
+ */
+export async function notifyNoPagoCancelledWhatsapp(input: {
+  caseId: string;
+  actor: string;
+}): Promise<NoPagoCancelledWhatsappResult> {
+  const db = await getDb();
+  const [row] = await db
+    .select()
+    .from(cases)
+    .where(eq(cases.id, input.caseId))
+    .limit(1);
+  if (!row) return { ok: false, error: "case_not_found" };
+
+  const creds = await getKapsoCredentialsForWorkspace(row.workspaceId);
+  if (!creds) return { ok: false, error: "kapso_not_configured" };
+
+  if (!row.contactId) {
+    return { ok: false, error: "missing_contact" };
+  }
+
+  const { phone: rawPhone } = await resolveContactPhone(row.contactId);
+  if (!rawPhone) return { ok: false, error: "missing_phone" };
+
+  const to = toWhatsAppRecipient(rawPhone);
+  if (!to) return { ok: false, error: "invalid_phone" };
+
+  const sent = await sendTemplate({
+    creds,
+    to,
+    template: NO_PAGO_CANCELLED_TEMPLATE,
+  });
+
+  if (!sent.ok) {
+    await db.insert(caseEvents).values({
+      caseId: row.id,
+      type: "whatsapp_no_pago_cancelled_failed",
+      payload: {
+        to,
+        template: NO_PAGO_CANCELLED_TEMPLATE,
+        status: sent.status,
+        error: sent.error,
+      },
+      actor: input.actor,
+    });
+    if (sent.status === 404 || /template/i.test(sent.error)) {
+      return { ok: false, error: "template_not_ready" };
+    }
+    return { ok: false, error: "kapso_send_failed" };
+  }
+
+  await db.insert(caseEvents).values({
+    caseId: row.id,
+    type: "whatsapp_no_pago_cancelled_sent",
+    payload: {
+      to,
+      template: NO_PAGO_CANCELLED_TEMPLATE,
+      language: TEMPLATE_LANGUAGE,
+      wamid: sent.wamid,
+    },
+    actor: input.actor,
+  });
+
+  return { ok: true, to, wamid: sent.wamid };
 }
 
 /**

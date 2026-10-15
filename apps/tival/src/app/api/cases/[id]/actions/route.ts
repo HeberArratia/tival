@@ -24,7 +24,10 @@ import { isClosingScore } from "@/lib/closing-scores";
 import { isLostReason } from "@/lib/lost-reasons";
 import { isMemberId } from "@/lib/members-catalog";
 import { retryN8nProposal } from "@/lib/integrations/n8n-proposal";
-import { requestPaymentProofWhatsapp } from "@/lib/integrations/kapso-whatsapp";
+import {
+  notifyNoPagoCancelledWhatsapp,
+  requestPaymentProofWhatsapp,
+} from "@/lib/integrations/kapso-whatsapp";
 
 export const runtime = "nodejs";
 
@@ -101,12 +104,22 @@ export async function POST(
     if (action === "mark_lost") {
       const raw = typeof body?.reason === "string" ? body.reason : "no_pago";
       const reason = isLostReason(raw) ? raw : "no_pago";
+      const notifyWhatsapp = body?.notifyWhatsapp === true;
       const row = await markLost({
         caseId: id,
         reason,
         actor,
       });
-      return NextResponse.json({ ok: true, case: row });
+      let whatsapp: Awaited<
+        ReturnType<typeof notifyNoPagoCancelledWhatsapp>
+      > | null = null;
+      if (notifyWhatsapp && reason === "no_pago") {
+        whatsapp = await notifyNoPagoCancelledWhatsapp({
+          caseId: id,
+          actor,
+        });
+      }
+      return NextResponse.json({ ok: true, case: row, whatsapp });
     }
 
     if (action === "mark_realizado") {

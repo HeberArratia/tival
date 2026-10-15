@@ -197,6 +197,7 @@ function HandoffCaseRow({
             status={c.status}
             paymentStatus={c.paymentStatus}
             stageKey={stage?.key}
+            hasPhone={Boolean(c.contact?.primaryPhone)}
             className="btn"
             stopPropagation
             reason="no_pago"
