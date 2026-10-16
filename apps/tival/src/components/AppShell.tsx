@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
+import { GlobalSearch } from "@/components/GlobalSearch";
 import { SidebarUser } from "@/components/SidebarUser";
 import {
   CLOSING_SCORES,
@@ -51,6 +52,8 @@ export function AppShell({
           <label>Workspace</label>
           <strong>{pack.name}</strong>
         </div>
+
+        <GlobalSearch />
 
         <nav className="nav">
           <div className="nav-label">Iniciativas</div>
