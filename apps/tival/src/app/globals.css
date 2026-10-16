@@ -129,6 +129,8 @@ button {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .nav-label {
@@ -219,9 +221,15 @@ button {
 }
 
 .sidebar-foot {
+  flex-shrink: 0;
   margin-top: auto;
-  padding-top: 0.75rem;
+  margin-left: -0.85rem;
+  margin-right: -0.85rem;
+  margin-bottom: -1.4rem;
+  padding: 0.85rem 0.85rem 1.4rem;
   border-top: 1px solid var(--t-line);
+  background: linear-gradient(180deg, rgba(244, 248, 248, 0.92) 0%, #f4f8f8 100%);
+  backdrop-filter: blur(6px);
 }
 
 .sidebar-foot p {
@@ -1105,12 +1113,13 @@ button.view-tab {
 
 .user-menu {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 0.45rem 0.55rem;
   margin-bottom: 0.65rem;
-  padding-bottom: 0.65rem;
-  border-bottom: 1px solid var(--t-line);
+  padding: 0.45rem 0.5rem;
+  border: 1px solid var(--t-line);
+  border-radius: 0.85rem;
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .user-menu-meta {
@@ -1122,6 +1131,9 @@ button.view-tab {
   display: block;
   font-size: 0.78rem;
   line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .user-menu-meta small {
@@ -1137,6 +1149,7 @@ button.view-tab {
   font-size: 0.72rem;
   padding: 0.2rem 0.45rem;
   height: auto;
+  flex-shrink: 0;
 }
 
 .assign-consultant-menu {
