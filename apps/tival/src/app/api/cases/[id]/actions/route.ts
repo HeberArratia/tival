@@ -18,6 +18,11 @@ import {
   unlinkCompanyFromCase,
   updateCaseCompany,
 } from "@/lib/cases";
+import {
+  addCaseNote,
+  deleteCaseNote,
+  updateCaseNote,
+} from "@/lib/case-notes";
 import { actorLabel, getSessionUser } from "@/lib/auth/session";
 import { isChileRegion } from "@/lib/chile-regions";
 import { isClosingScore } from "@/lib/closing-scores";
@@ -369,6 +374,76 @@ export async function POST(
         actor,
       });
       return NextResponse.json({ ok: true, case: row });
+    }
+
+    if (action === "add_note") {
+      const noteBody = typeof body?.body === "string" ? body.body : "";
+      try {
+        const note = await addCaseNote({
+          caseId: id,
+          body: noteBody,
+          authorUserId: session.id,
+          authorName: actor,
+        });
+        return NextResponse.json({ ok: true, note });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "error";
+        if (msg === "empty_note" || msg === "note_too_long") {
+          return NextResponse.json({ ok: false, error: msg }, { status: 400 });
+        }
+        throw err;
+      }
+    }
+
+    if (action === "update_note") {
+      const noteId =
+        typeof body?.noteId === "string" ? body.noteId.trim() : "";
+      const noteBody = typeof body?.body === "string" ? body.body : "";
+      if (!noteId) {
+        return NextResponse.json(
+          { ok: false, error: "invalid_note" },
+          { status: 400 }
+        );
+      }
+      try {
+        const note = await updateCaseNote({
+          caseId: id,
+          noteId,
+          body: noteBody,
+          actor,
+        });
+        return NextResponse.json({ ok: true, note });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "error";
+        if (msg === "empty_note" || msg === "note_too_long") {
+          return NextResponse.json({ ok: false, error: msg }, { status: 400 });
+        }
+        if (msg === "Note not found") {
+          return NextResponse.json({ ok: false, error: msg }, { status: 404 });
+        }
+        throw err;
+      }
+    }
+
+    if (action === "delete_note") {
+      const noteId =
+        typeof body?.noteId === "string" ? body.noteId.trim() : "";
+      if (!noteId) {
+        return NextResponse.json(
+          { ok: false, error: "invalid_note" },
+          { status: 400 }
+        );
+      }
+      try {
+        await deleteCaseNote({ caseId: id, noteId, actor });
+        return NextResponse.json({ ok: true });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "error";
+        if (msg === "Note not found") {
+          return NextResponse.json({ ok: false, error: msg }, { status: 404 });
+        }
+        throw err;
+      }
     }
 
     return NextResponse.json({ ok: false, error: "unknown_action" }, { status: 400 });

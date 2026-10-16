@@ -389,6 +389,27 @@ export const caseEvents = pgTable(
   (t) => [index("case_events_case_created").on(t.caseId, t.createdAt)]
 );
 
+/** Notas internas del consultor / ops sobre una oportunidad. */
+export const caseNotes = pgTable(
+  "case_notes",
+  {
+    id: id(),
+    caseId: uuid("case_id")
+      .notNull()
+      .references(() => cases.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    authorUserId: uuid("author_user_id").references(() => users.id),
+    authorName: text("author_name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [index("case_notes_case_created").on(t.caseId, t.createdAt)]
+);
+
 /** Producto del workspace — catálogo plano. */
 export const products = pgTable(
   "products",
@@ -428,6 +449,7 @@ export type CompanyRow = typeof companies.$inferSelect;
 export type ContactCompanyRow = typeof contactCompanies.$inferSelect;
 export type CaseRow = typeof cases.$inferSelect;
 export type CaseEvent = typeof caseEvents.$inferSelect;
+export type CaseNote = typeof caseNotes.$inferSelect;
 export type CaseStatus = (typeof caseStatusEnum.enumValues)[number];
 export type IntegrationConnection =
   typeof integrationConnections.$inferSelect;

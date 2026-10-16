@@ -9,11 +9,15 @@ export type Db =
   | ReturnType<typeof drizzlePg<typeof schema>>
   | ReturnType<typeof drizzlePglite<typeof schema>>;
 
+/** Subir cuando se agreguen tablas/columnas en ensure* (hot-reload seguro). */
+const SCHEMA_ENSURE_VERSION = 2;
+
 const globalForDb = globalThis as unknown as {
   pgClient?: ReturnType<typeof postgres>;
   pglite?: PGlite;
   drizzleDb?: Db;
   migrated?: boolean;
+  schemaEnsureVersion?: number;
 };
 
 function shouldUsePglite() {
@@ -22,7 +26,7 @@ function shouldUsePglite() {
 }
 
 async function ensurePgliteSchema(client: PGlite) {
-  if (globalForDb.migrated) return;
+  if (globalForDb.schemaEnsureVersion === SCHEMA_ENSURE_VERSION) return;
   await client.exec(`
     DO $$ BEGIN
       CREATE TYPE case_status AS ENUM (
@@ -221,6 +225,20 @@ async function ensurePgliteSchema(client: PGlite) {
       actor text NOT NULL DEFAULT 'sistema',
       created_at timestamptz NOT NULL DEFAULT now()
     );
+    CREATE INDEX IF NOT EXISTS case_events_case_created
+      ON case_events(case_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS case_notes (
+      id uuid PRIMARY KEY,
+      case_id uuid NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+      body text NOT NULL,
+      author_user_id uuid,
+      author_name text NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS case_notes_case_created
+      ON case_notes(case_id, created_at);
 
     CREATE TABLE IF NOT EXISTS products (
       id uuid PRIMARY KEY,
@@ -244,11 +262,12 @@ async function ensurePgliteSchema(client: PGlite) {
     DROP INDEX IF EXISTS products_workspace_fund;
   `);
   globalForDb.migrated = true;
+  globalForDb.schemaEnsureVersion = SCHEMA_ENSURE_VERSION;
 }
 
 /** Columnas nuevas en Postgres gestionado (Railway) — idempotente. */
 async function ensurePostgresColumns(sql: ReturnType<typeof postgres>) {
-  if (globalForDb.migrated) return;
+  if (globalForDb.schemaEnsureVersion === SCHEMA_ENSURE_VERSION) return;
   await sql.unsafe(`
     ALTER TABLE cases ADD COLUMN IF NOT EXISTS segmento text;
     ALTER TABLE cases ADD COLUMN IF NOT EXISTS segmento_sugerido text;
@@ -256,13 +275,24 @@ async function ensurePostgresColumns(sql: ReturnType<typeof postgres>) {
     ALTER TABLE cases ADD COLUMN IF NOT EXISTS google_calendar_event_id text;
     ALTER TABLE cases ADD COLUMN IF NOT EXISTS lost_reason text;
     ALTER TABLE cases ADD COLUMN IF NOT EXISTS assigned_consultant_id text;
+
+    CREATE TABLE IF NOT EXISTS case_notes (
+      id uuid PRIMARY KEY,
+      case_id uuid NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+      body text NOT NULL,
+      author_user_id uuid REFERENCES users(id),
+      author_name text NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS case_notes_case_created
+      ON case_notes(case_id, created_at);
   `);
   globalForDb.migrated = true;
+  globalForDb.schemaEnsureVersion = SCHEMA_ENSURE_VERSION;
 }
 
 export async function getDb(): Promise<Db> {
-  if (globalForDb.drizzleDb) return globalForDb.drizzleDb;
-
   if (shouldUsePglite()) {
     const dataDir = path.join(process.cwd(), "data", "pglite");
     const client = globalForDb.pglite ?? new PGlite(dataDir);
@@ -271,7 +301,9 @@ export async function getDb(): Promise<Db> {
       globalForDb.pglite = client;
     }
     await ensurePgliteSchema(client);
-    globalForDb.drizzleDb = drizzlePglite(client, { schema });
+    if (!globalForDb.drizzleDb) {
+      globalForDb.drizzleDb = drizzlePglite(client, { schema });
+    }
     return globalForDb.drizzleDb;
   }
 
@@ -283,6 +315,8 @@ export async function getDb(): Promise<Db> {
     postgres(connectionString, { max: 10, prepare: false });
   globalForDb.pgClient = client;
   await ensurePostgresColumns(client);
-  globalForDb.drizzleDb = drizzlePg(client, { schema });
+  if (!globalForDb.drizzleDb) {
+    globalForDb.drizzleDb = drizzlePg(client, { schema });
+  }
   return globalForDb.drizzleDb;
 }

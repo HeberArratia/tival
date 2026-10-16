@@ -721,6 +721,21 @@ const EVENT_LABELS: Record<
     kind: "humano",
     result: "ok",
   },
+  note_added: {
+    title: "Humano · nota agregada",
+    kind: "humano",
+    result: "ok",
+  },
+  note_updated: {
+    title: "Humano · nota editada",
+    kind: "humano",
+    result: "ok",
+  },
+  note_deleted: {
+    title: "Humano · nota eliminada",
+    kind: "humano",
+    result: "ok",
+  },
 };
 
 export function describeEvent(type: string) {

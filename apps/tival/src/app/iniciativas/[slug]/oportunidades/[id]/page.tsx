@@ -40,10 +40,12 @@ import {
   OpportunityFieldValues,
 } from "@/components/OpportunityFields";
 import { OpportunityIdentityEditor } from "@/components/OpportunityIdentityEditor";
+import { OpportunityNotes } from "@/components/OpportunityNotes";
 import { OpportunityTabs } from "@/components/OpportunityTabs";
 import { ProductEditor } from "@/components/ProductEditor";
 import { RegionEditor } from "@/components/RegionEditor";
 import { SegmentEditor } from "@/components/SegmentEditor";
+import { listCaseNotes } from "@/lib/case-notes";
 import { caseTitle, getCaseWithEvents, getStagesForCase } from "@/lib/cases";
 import {
   extrasForCase,
@@ -185,8 +187,11 @@ export default async function IniciativaOportunidadPage({
       : ini
         ? `/iniciativas/${ini.slug}`
         : "/iniciativas";
+  const notes = await listCaseNotes(c.id);
   const initialTab =
-    tabParam === "productos" || tabParam === "timeline"
+    tabParam === "productos" ||
+    tabParam === "notas" ||
+    tabParam === "timeline"
       ? tabParam
       : "general";
 
@@ -442,6 +447,7 @@ export default async function IniciativaOportunidadPage({
             <OpportunityTabs
               initialTab={initialTab}
               productsCount={currentProductKeys.length}
+              notesCount={notes.length}
               productsTotalLabel={
                 currentProductKeys.length ? formatClp(productsTotal) : null
               }
@@ -589,6 +595,19 @@ export default async function IniciativaOportunidadPage({
                       currentProductKeys={currentProductKeys}
                       options={productOptions}
                     />
+                  </div>
+                </div>
+              }
+              notes={
+                <div className="panel">
+                  <p className="panel-kicker">Consultor</p>
+                  <h3>Notas</h3>
+                  <p className="lede" style={{ marginTop: "0.35rem" }}>
+                    Apuntes internos de esta oportunidad. Editables y
+                    eliminables.
+                  </p>
+                  <div style={{ marginTop: "0.85rem" }}>
+                    <OpportunityNotes caseId={c.id} initialNotes={notes} />
                   </div>
                 </div>
               }

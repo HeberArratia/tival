@@ -2,20 +2,24 @@
 
 import { useState, type ReactNode } from "react";
 
-export type OpportunityTabId = "general" | "productos" | "timeline";
+export type OpportunityTabId = "general" | "productos" | "notas" | "timeline";
 
 export function OpportunityTabs({
   general,
   products,
+  notes,
   timeline,
   productsCount = 0,
+  notesCount = 0,
   productsTotalLabel,
   initialTab = "general",
 }: {
   general: ReactNode;
   products: ReactNode;
+  notes: ReactNode;
   timeline: ReactNode;
   productsCount?: number;
+  notesCount?: number;
   productsTotalLabel?: string | null;
   initialTab?: OpportunityTabId;
 }) {
@@ -48,6 +52,18 @@ export function OpportunityTabs({
         <button
           type="button"
           role="tab"
+          aria-selected={tab === "notas"}
+          className={`view-tab ${tab === "notas" ? "is-active" : ""}`}
+          onClick={() => setTab("notas")}
+        >
+          Notas
+          {notesCount > 0 ? (
+            <span className="view-tab-count">{notesCount}</span>
+          ) : null}
+        </button>
+        <button
+          type="button"
+          role="tab"
           aria-selected={tab === "timeline"}
           className={`view-tab ${tab === "timeline" ? "is-active" : ""}`}
           onClick={() => setTab("timeline")}
@@ -65,6 +81,7 @@ export function OpportunityTabs({
       <div className="opp-tab-panel" role="tabpanel">
         {tab === "general" ? general : null}
         {tab === "productos" ? products : null}
+        {tab === "notas" ? notes : null}
         {tab === "timeline" ? timeline : null}
       </div>
     </div>
