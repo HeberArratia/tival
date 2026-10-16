@@ -16,6 +16,7 @@
 
 import { CHILE_REGION_KEYS } from "@/lib/chile-regions";
 import { CLOSING_SCORE_KEYS } from "@/lib/closing-scores";
+import { DEAL_FIT_KEYS } from "@/lib/deal-fits";
 
 export type OpportunityFieldType =
   | "text"
@@ -82,9 +83,17 @@ export const CONSULTORIA_FIELDS: OpportunityFieldDef[] = [
   },
   {
     key: "closing_score",
-    label: "Closing score",
+    label: "Temperatura comercial",
     type: "select",
     options: [...CLOSING_SCORE_KEYS],
+    filledAtStage: "realizado",
+    filledBy: "Ops · post diagnóstico",
+  },
+  {
+    key: "deal_fit",
+    label: "Calificación del deal",
+    type: "select",
+    options: [...DEAL_FIT_KEYS],
     filledAtStage: "realizado",
     filledBy: "Ops · post diagnóstico",
   },

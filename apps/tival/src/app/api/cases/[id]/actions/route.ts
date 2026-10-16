@@ -11,6 +11,7 @@ import {
   markPropuestaEnviada,
   markWon,
   setClosingScore,
+  setDealFit,
   setPrimaryCompany,
   setProducts,
   setRegion,
@@ -26,6 +27,7 @@ import {
 import { actorLabel, getSessionUser } from "@/lib/auth/session";
 import { isChileRegion } from "@/lib/chile-regions";
 import { isClosingScore } from "@/lib/closing-scores";
+import { isDealFit } from "@/lib/deal-fits";
 import { isLostReason } from "@/lib/lost-reasons";
 import { isMemberId } from "@/lib/members-catalog";
 import { retryN8nProposal } from "@/lib/integrations/n8n-proposal";
@@ -131,6 +133,9 @@ export async function POST(
       const rawScore =
         typeof body?.closingScore === "string" ? body.closingScore : null;
       const closingScore = isClosingScore(rawScore) ? rawScore : null;
+      const rawFit =
+        typeof body?.dealFit === "string" ? body.dealFit : null;
+      const dealFit = isDealFit(rawFit) ? rawFit : null;
       const rawRegion = typeof body?.region === "string" ? body.region : null;
       const region = isChileRegion(rawRegion) ? rawRegion : null;
       const productKeys = Array.isArray(body?.productKeys)
@@ -148,6 +153,7 @@ export async function POST(
         caseId: id,
         actor,
         closingScore,
+        dealFit,
         region,
         productKeys,
         segmento,
@@ -177,6 +183,17 @@ export async function POST(
       const row = await setClosingScore({
         caseId: id,
         closingScore,
+        actor,
+      });
+      return NextResponse.json({ ok: true, case: row });
+    }
+
+    if (action === "set_deal_fit") {
+      const raw = typeof body?.dealFit === "string" ? body.dealFit : null;
+      const dealFit = isDealFit(raw) ? raw : null;
+      const row = await setDealFit({
+        caseId: id,
+        dealFit,
         actor,
       });
       return NextResponse.json({ ok: true, case: row });

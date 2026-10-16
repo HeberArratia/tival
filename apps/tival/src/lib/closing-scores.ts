@@ -1,31 +1,29 @@
-/** Closing score post-diagnóstico (temperatura comercial). */
+/** Temperatura comercial (momentum). Independiente del fit del deal. */
 
 export const CLOSING_SCORES = {
   hot: {
     emoji: "🔥",
-    label: "Hot",
+    label: "Caliente",
     description: "Quiere avanzar ahora y tiene cómo hacerlo",
   },
   warm: {
     emoji: "🌤️",
-    label: "Warm",
+    label: "Templado",
     description: "Interesado, pero aún le falta madurar",
   },
   cold: {
     emoji: "❄️",
-    label: "Cold",
+    label: "Frío",
     description: "Busca información sin intención inmediata",
-  },
-  no_fit: {
-    emoji: "🚫",
-    label: "No fit",
-    description: "No hace match con producto o perfil",
   },
 } as const;
 
 export type ClosingScore = keyof typeof CLOSING_SCORES;
 
 export const CLOSING_SCORE_KEYS = Object.keys(CLOSING_SCORES) as ClosingScore[];
+
+/** Valor legacy: `no_fit` vivía aquí; ahora es `deal_fit`. */
+export const LEGACY_CLOSING_NO_FIT = "no_fit";
 
 export function isClosingScore(
   value: string | null | undefined
@@ -42,4 +40,22 @@ export function closingScoreLabel(
     return `${s.emoji} ${s.label}`;
   }
   return value.replace(/_/g, " ");
+}
+
+/**
+ * Si `closing_score` es el legacy `no_fit`, lo mueve a `deal_fit`
+ * (solo si deal_fit está vacío) y limpia temperatura.
+ */
+export function migrateLegacyClosingNoFit(
+  qualification: Record<string, unknown>
+): Record<string, unknown> {
+  if (qualification.closing_score !== LEGACY_CLOSING_NO_FIT) {
+    return qualification;
+  }
+  const next = { ...qualification };
+  delete next.closing_score;
+  if (next.deal_fit == null || next.deal_fit === "") {
+    next.deal_fit = LEGACY_CLOSING_NO_FIT;
+  }
+  return next;
 }

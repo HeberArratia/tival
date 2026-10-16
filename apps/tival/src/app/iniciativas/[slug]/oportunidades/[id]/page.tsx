@@ -7,6 +7,7 @@ import {
   SegmentPill,
   StatusPill,
   Topbar,
+  dealFitFromQualification,
 } from "@/components/AppShell";
 import {
   AssignConsultantButton,
@@ -34,6 +35,7 @@ import {
   StageRail,
 } from "@/components/ProcessUI";
 import { ClosingScoreEditor } from "@/components/ClosingScoreEditor";
+import { DealFitEditor } from "@/components/DealFitEditor";
 import { DiagnosticoEnrichmentPanel } from "@/components/DiagnosticoAnswers";
 import {
   OpportunityExtras,
@@ -107,6 +109,7 @@ export default async function IniciativaOportunidadPage({
     typeof qualification.closing_score === "string"
       ? qualification.closing_score
       : null;
+  const currentDealFit = dealFitFromQualification(qualification);
   const currentRegion =
     typeof qualification.region === "string" &&
     isChileRegion(qualification.region)
@@ -390,6 +393,7 @@ export default async function IniciativaOportunidadPage({
                       status={c.status}
                       stageKey={currentStage.key}
                       currentClosingScore={currentClosingScore}
+                      currentDealFit={currentDealFit}
                       currentRegion={currentRegion}
                       currentProductKeys={currentProductKeys}
                       productOptions={productOptions}
@@ -480,6 +484,7 @@ export default async function IniciativaOportunidadPage({
                           ? fieldRows.filter(
                               (r) =>
                                 r.def.key !== "closing_score" &&
+                                r.def.key !== "deal_fit" &&
                                 r.def.key !== "region"
                             )
                           : fieldRows
@@ -540,19 +545,36 @@ export default async function IniciativaOportunidadPage({
                   />
 
                   {isConsultoria ? (
-                    <div className="panel" style={{ marginTop: "1rem" }}>
-                      <p className="panel-kicker">Closing score</p>
-                      <h3>Temperatura comercial</h3>
-                      <p className="lede" style={{ marginTop: "0.35rem" }}>
-                        Opcional. Podés actualizarlo en cualquier momento.
-                      </p>
-                      <div style={{ marginTop: "0.75rem" }}>
-                        <ClosingScoreEditor
-                          caseId={c.id}
-                          currentClosingScore={currentClosingScore}
-                        />
+                    <>
+                      <div className="panel" style={{ marginTop: "1rem" }}>
+                        <p className="panel-kicker">Temperatura</p>
+                        <h3>Temperatura comercial</h3>
+                        <p className="lede" style={{ marginTop: "0.35rem" }}>
+                          Momentum del deal. Opcional — actualizalo cuando
+                          cambie.
+                        </p>
+                        <div style={{ marginTop: "0.75rem" }}>
+                          <ClosingScoreEditor
+                            caseId={c.id}
+                            currentClosingScore={currentClosingScore}
+                          />
+                        </div>
                       </div>
-                    </div>
+                      <div className="panel" style={{ marginTop: "1rem" }}>
+                        <p className="panel-kicker">Fit</p>
+                        <h3>Calificación del deal</h3>
+                        <p className="lede" style={{ marginTop: "0.35rem" }}>
+                          Qué tan bueno es el proyecto para nosotros.
+                          Independiente de la temperatura.
+                        </p>
+                        <div style={{ marginTop: "0.75rem" }}>
+                          <DealFitEditor
+                            caseId={c.id}
+                            currentDealFit={currentDealFit}
+                          />
+                        </div>
+                      </div>
+                    </>
                   ) : null}
 
                   {Object.keys(extras).length > 0 ? (

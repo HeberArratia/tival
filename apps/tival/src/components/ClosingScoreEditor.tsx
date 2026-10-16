@@ -76,12 +76,12 @@ export function ClosingScoreEditor({
       : saveState === "saved"
         ? score
           ? `Guardado · ${closingScoreLabel(score)}`
-          : "Guardado · sin score"
+          : "Guardado · sin temperatura"
         : saveState === "error"
           ? "No se pudo guardar. Probá de nuevo."
           : score
             ? `Actual: ${closingScoreLabel(score)}`
-            : "Sin score todavía";
+            : "Sin temperatura todavía";
 
   return (
     <div className="closing-score-editor">

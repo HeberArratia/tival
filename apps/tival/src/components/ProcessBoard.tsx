@@ -2,12 +2,14 @@ import Link from "next/link";
 import type { PlaybookStage } from "@/db/schema";
 import {
   ClosingScorePill,
+  DealFitPill,
   InitiativePill,
   PaymentRequestPill,
   SegmentPill,
   StatusPill,
   LostReasonPill,
   closingScoreFromQualification,
+  dealFitFromQualification,
 } from "@/components/AppShell";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { StageRecipeChips } from "@/components/ProcessUI";
@@ -249,6 +251,9 @@ export function ProcessBoard({
                           />
                           <ClosingScorePill
                             score={closingScoreFromQualification(c.qualification)}
+                          />
+                          <DealFitPill
+                            fit={dealFitFromQualification(c.qualification)}
                           />
                           {ini ? <InitiativePill initiative={ini} /> : null}
                           {["cancelled", "no_show"].includes(c.status) ? (

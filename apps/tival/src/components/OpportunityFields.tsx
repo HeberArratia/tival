@@ -3,10 +3,14 @@ import { formatFieldValue } from "@/lib/opportunity-fields";
 import type { ResolvedOpportunityField } from "@/lib/fake-data";
 import { chileRegionLabel } from "@/lib/chile-regions";
 import { closingScoreLabel } from "@/lib/closing-scores";
+import { dealFitLabel } from "@/lib/deal-fits";
 
 function displayFieldValue(def: OpportunityFieldDef, value: string | null) {
   if (def.key === "closing_score") {
     return closingScoreLabel(value) ?? "—";
+  }
+  if (def.key === "deal_fit") {
+    return dealFitLabel(value) ?? "—";
   }
   if (def.key === "region") {
     return chileRegionLabel(value) ?? "—";

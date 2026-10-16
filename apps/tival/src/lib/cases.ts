@@ -23,7 +23,13 @@ import {
   playbookMetaById,
 } from "@/lib/fake-data";
 import { isChileRegion, type ChileRegion } from "@/lib/chile-regions";
-import { isClosingScore, type ClosingScore } from "@/lib/closing-scores";
+import {
+  isClosingScore,
+  LEGACY_CLOSING_NO_FIT,
+  migrateLegacyClosingNoFit,
+  type ClosingScore,
+} from "@/lib/closing-scores";
+import { isDealFit, type DealFit } from "@/lib/deal-fits";
 import {
   getCompanyById,
   isContactLinkedToCompany,
@@ -842,11 +848,12 @@ export async function markLost(input: {
   return updated;
 }
 
-/** Diagnóstico pagado → Diagnóstico realizado. Score/región/producto opcionales. */
+/** Diagnóstico pagado → Diagnóstico realizado. Score/fit/región/producto opcionales. */
 export async function markDiagnosticoRealizado(input: {
   caseId: string;
   actor?: string;
   closingScore?: ClosingScore | null;
+  dealFit?: DealFit | null;
   region?: ChileRegion | null;
   productKeys?: string[] | null;
   /** Segmento confirmado por el consultor (opcional). */
@@ -882,6 +889,8 @@ export async function markDiagnosticoRealizado(input: {
     input.closingScore && isClosingScore(input.closingScore)
       ? input.closingScore
       : null;
+  const dealFit =
+    input.dealFit && isDealFit(input.dealFit) ? input.dealFit : null;
   const region =
     input.region && isChileRegion(input.region) ? input.region : null;
   const productKeys = Array.isArray(input.productKeys)
@@ -895,20 +904,24 @@ export async function markDiagnosticoRealizado(input: {
     : null;
   const segmento = normalizeSegmentCode(input.segmento);
 
+  const baseQ = migrateLegacyClosingNoFit({
+    ...((current.qualification ?? {}) as Record<string, unknown>),
+  });
   const qPatch: Record<string, unknown> = {};
   if (score) qPatch.closing_score = score;
+  if (dealFit) qPatch.deal_fit = dealFit;
   if (region) qPatch.region = region;
   if (productKeys && productKeys.length > 0) {
     qPatch.productos = productKeys;
   }
   if (segmento) qPatch.segmento_confirmado = segmento;
 
+  const hadLegacy =
+    (current.qualification as Record<string, unknown> | null)?.closing_score ===
+    LEGACY_CLOSING_NO_FIT;
   let nextQualification: Record<string, unknown> | undefined;
-  if (Object.keys(qPatch).length > 0) {
-    nextQualification = {
-      ...((current.qualification ?? {}) as Record<string, unknown>),
-      ...qPatch,
-    };
+  if (Object.keys(qPatch).length > 0 || hadLegacy) {
+    nextQualification = { ...baseQ, ...qPatch };
     delete nextQualification.producto;
   }
 
@@ -929,6 +942,7 @@ export async function markDiagnosticoRealizado(input: {
     {
       fromStageId: current.currentStageId,
       ...(score ? { closingScore: score } : {}),
+      ...(dealFit ? { dealFit } : {}),
       ...(region ? { region } : {}),
       ...(productKeys && productKeys.length ? { productKeys } : {}),
       ...(segmento
@@ -1006,7 +1020,7 @@ export async function markPropuestaEnviada(input: {
   return updated;
 }
 
-/** Actualiza closing score sin cambiar etapa (opcional, en cualquier momento). */
+/** Actualiza temperatura comercial sin cambiar etapa (opcional, en cualquier momento). */
 export async function setClosingScore(input: {
   caseId: string;
   closingScore: ClosingScore | null;
@@ -1025,9 +1039,9 @@ export async function setClosingScore(input: {
       ? input.closingScore
       : null;
 
-  const q = {
+  const q = migrateLegacyClosingNoFit({
     ...((current.qualification ?? {}) as Record<string, unknown>),
-  };
+  });
   if (score) q.closing_score = score;
   else delete q.closing_score;
 
@@ -1044,6 +1058,47 @@ export async function setClosingScore(input: {
     updated.id,
     "closing_score_set",
     { closingScore: score },
+    input.actor ?? "ops"
+  );
+  return updated;
+}
+
+/** Actualiza calificación del deal sin cambiar etapa (opcional, en cualquier momento). */
+export async function setDealFit(input: {
+  caseId: string;
+  dealFit: DealFit | null;
+  actor?: string;
+}): Promise<CaseRow> {
+  const db = await getDb();
+  const [current] = await db
+    .select()
+    .from(cases)
+    .where(eq(cases.id, input.caseId))
+    .limit(1);
+  if (!current) throw new Error("Case not found");
+
+  const fit =
+    input.dealFit && isDealFit(input.dealFit) ? input.dealFit : null;
+
+  const q = migrateLegacyClosingNoFit({
+    ...((current.qualification ?? {}) as Record<string, unknown>),
+  });
+  if (fit) q.deal_fit = fit;
+  else delete q.deal_fit;
+
+  const [updated] = await db
+    .update(cases)
+    .set({
+      qualification: q,
+      updatedAt: new Date(),
+    })
+    .where(eq(cases.id, current.id))
+    .returning();
+
+  await appendEvent(
+    updated.id,
+    "deal_fit_set",
+    { dealFit: fit },
     input.actor ?? "ops"
   );
   return updated;

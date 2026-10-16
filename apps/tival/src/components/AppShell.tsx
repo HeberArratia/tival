@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
 import { SidebarUser } from "@/components/SidebarUser";
-import { CLOSING_SCORES, isClosingScore } from "@/lib/closing-scores";
+import {
+  CLOSING_SCORES,
+  LEGACY_CLOSING_NO_FIT,
+  isClosingScore,
+} from "@/lib/closing-scores";
+import { DEAL_FITS, isDealFit } from "@/lib/deal-fits";
 import {
   playbookLabel,
   playbookMetaById,
@@ -225,7 +230,7 @@ export function LostReasonPill({
   );
 }
 
-/** Solo renderiza si hay closing score definido. */
+/** Solo renderiza si hay temperatura comercial definida. */
 export function ClosingScorePill({
   score,
 }: {
@@ -248,6 +253,36 @@ export function closingScoreFromQualification(
 ): string | null {
   const raw = qualification?.closing_score;
   return typeof raw === "string" && isClosingScore(raw) ? raw : null;
+}
+
+/** Solo renderiza si hay calificación del deal definida. */
+export function DealFitPill({
+  fit,
+}: {
+  fit: string | null | undefined;
+}) {
+  if (!isDealFit(fit)) return null;
+  const s = DEAL_FITS[fit];
+  return (
+    <span
+      className={`pill pill-fit pill-fit-${fit}`}
+      title={s.description}
+    >
+      {s.emoji} {s.label}
+    </span>
+  );
+}
+
+export function dealFitFromQualification(
+  qualification: Record<string, unknown> | null | undefined
+): string | null {
+  const raw = qualification?.deal_fit;
+  if (typeof raw === "string" && isDealFit(raw)) return raw;
+  // Legacy: no_fit vivía en closing_score
+  if (qualification?.closing_score === LEGACY_CLOSING_NO_FIT) {
+    return LEGACY_CLOSING_NO_FIT;
+  }
+  return null;
 }
 
 export function PlaybookPill({

@@ -24,7 +24,7 @@ export function ClosingScorePicker({
     <div
       className={`closing-score-picker${hasSelection ? " has-selection" : ""}`}
       role="radiogroup"
-      aria-label="Closing score"
+      aria-label="Temperatura comercial"
     >
       {CLOSING_SCORE_KEYS.map((key) => {
         const s = CLOSING_SCORES[key];

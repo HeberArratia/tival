@@ -2049,7 +2049,26 @@ button.view-tab {
   color: #3d6b6b;
 }
 
-.pill-closing-no_fit {
+.pill-fit {
+  font-weight: 600;
+}
+
+.pill-fit-alto {
+  background: rgba(34, 140, 90, 0.14);
+  color: #1a6b45;
+}
+
+.pill-fit-medio {
+  background: rgba(217, 119, 6, 0.12);
+  color: #9a6700;
+}
+
+.pill-fit-bajo {
+  background: rgba(238, 121, 126, 0.14);
+  color: #b45343;
+}
+
+.pill-fit-no_fit {
   background: rgba(32, 32, 35, 0.08);
   color: var(--t-muted);
 }

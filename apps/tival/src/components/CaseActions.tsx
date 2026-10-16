@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { ClosingScorePicker } from "@/components/ClosingScorePicker";
+import { DealFitPicker } from "@/components/DealFitPicker";
 import { ProductSelect } from "@/components/ProductSelect";
 import { RegionSelect } from "@/components/RegionSelect";
 import {
@@ -14,6 +15,7 @@ import {
   isClosingScore,
   type ClosingScore,
 } from "@/lib/closing-scores";
+import { isDealFit, type DealFit } from "@/lib/deal-fits";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { canAssignConsultant } from "@/lib/members-catalog";
 import { toProductOption, type ProductOption } from "@/lib/products";
@@ -115,6 +117,7 @@ async function postAction(
     reason?: string;
     notifyWhatsapp?: boolean;
     closingScore?: string | null;
+    dealFit?: string | null;
     region?: string | null;
     productKeys?: string[] | null;
     consultantId?: string | null;
@@ -1015,6 +1018,7 @@ export function MarkRealizadoButton({
   className = "btn btn-primary",
   stopPropagation = false,
   currentClosingScore,
+  currentDealFit,
   currentRegion,
   currentProductKeys,
   productOptions: productOptionsProp,
@@ -1029,6 +1033,7 @@ export function MarkRealizadoButton({
   className?: string;
   stopPropagation?: boolean;
   currentClosingScore?: string | null;
+  currentDealFit?: string | null;
   currentRegion?: string | null;
   currentProductKeys?: string[];
   productOptions?: ProductOption[];
@@ -1044,6 +1049,9 @@ export function MarkRealizadoButton({
   const [score, setScore] = useState<ClosingScore | null>(
     isClosingScore(currentClosingScore) ? currentClosingScore : null
   );
+  const [dealFit, setDealFit] = useState<DealFit | null>(
+    isDealFit(currentDealFit) ? currentDealFit : null
+  );
   const [region, setRegion] = useState<ChileRegion | null>(
     isChileRegion(currentRegion) ? currentRegion : null
   );
@@ -1058,6 +1066,7 @@ export function MarkRealizadoButton({
   useEffect(() => {
     if (open) {
       setScore(isClosingScore(currentClosingScore) ? currentClosingScore : null);
+      setDealFit(isDealFit(currentDealFit) ? currentDealFit : null);
       setRegion(isChileRegion(currentRegion) ? currentRegion : null);
       setProductKeys(currentProductKeys ?? []);
       setSegmento(
@@ -1084,6 +1093,7 @@ export function MarkRealizadoButton({
   }, [
     open,
     currentClosingScore,
+    currentDealFit,
     currentRegion,
     currentProductKeys,
     productOptionsProp,
@@ -1106,6 +1116,7 @@ export function MarkRealizadoButton({
     try {
       await postAction(caseId, "mark_realizado", {
         closingScore: score,
+        dealFit,
         region,
         productKeys,
         segmento,
@@ -1190,9 +1201,24 @@ export function MarkRealizadoButton({
             </div>
 
             <div style={{ marginTop: "0.85rem" }}>
+              <p className="field-label" style={{ marginBottom: "0.4rem" }}>
+                Temperatura comercial
+              </p>
               <ClosingScorePicker
                 value={score}
                 onChange={setScore}
+                disabled={loading}
+                allowClear
+              />
+            </div>
+
+            <div style={{ marginTop: "0.85rem" }}>
+              <p className="field-label" style={{ marginBottom: "0.4rem" }}>
+                Calificación del deal
+              </p>
+              <DealFitPicker
+                value={dealFit}
+                onChange={setDealFit}
                 disabled={loading}
                 allowClear
               />

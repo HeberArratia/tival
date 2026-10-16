@@ -682,7 +682,15 @@ export function resolveOpportunityFields(caseRow: {
     evento: typeof q.evento === "string" ? q.evento : null,
     wizard: typeof q.wizard === "string" ? q.wizard : null,
     closing_score:
-      typeof q.closing_score === "string" ? q.closing_score : null,
+      typeof q.closing_score === "string" && q.closing_score !== "no_fit"
+        ? q.closing_score
+        : null,
+    deal_fit:
+      typeof q.deal_fit === "string"
+        ? q.deal_fit
+        : q.closing_score === "no_fit"
+          ? "no_fit"
+          : null,
     region: typeof q.region === "string" ? q.region : null,
     ruta_calendly: caseRow.calendlyRoute ?? null,
   };

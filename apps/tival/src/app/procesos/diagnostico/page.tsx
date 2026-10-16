@@ -12,12 +12,14 @@ import {
 import {
   AppShell,
   ClosingScorePill,
+  DealFitPill,
   LostReasonPill,
   PaymentRequestPill,
   SegmentPill,
   StatusPill,
   Topbar,
   closingScoreFromQualification,
+  dealFitFromQualification,
 } from "@/components/AppShell";
 import {
   AssignConsultantButton,
@@ -65,6 +67,10 @@ type ViewId = "tablero" | "listado" | "handoff";
 
 function closingScoreFromCase(c: CaseWithIdentity): string | null {
   return closingScoreFromQualification(c.qualification);
+}
+
+function dealFitFromCase(c: CaseWithIdentity): string | null {
+  return dealFitFromQualification(c.qualification);
 }
 
 function regionFromCase(c: CaseWithIdentity): string | null {
@@ -139,6 +145,7 @@ function HandoffCaseRow({
             status={segInfo?.status}
           />
           <ClosingScorePill score={closingScoreFromCase(c)} />
+          <DealFitPill fit={dealFitFromCase(c)} />
           {["cancelled", "no_show"].includes(c.status) ? (
             <StatusPill status={c.status} />
           ) : null}
@@ -222,6 +229,7 @@ function HandoffCaseRow({
             stageKey={stage?.key}
             stopPropagation
             currentClosingScore={closingScoreFromCase(c)}
+            currentDealFit={dealFitFromCase(c)}
             currentRegion={regionFromCase(c)}
             currentProductKeys={productKeysFromCase(c)}
             productOptions={productOptions}
@@ -633,6 +641,7 @@ export default async function DiagnosticoInnovacionCanvasPage({
                               status={segInfo?.status}
                             />
                             <ClosingScorePill score={closingScoreFromCase(c)} />
+                            <DealFitPill fit={dealFitFromCase(c)} />
                             {["cancelled", "no_show"].includes(c.status) ? (
                               <StatusPill status={c.status} />
                             ) : null}
