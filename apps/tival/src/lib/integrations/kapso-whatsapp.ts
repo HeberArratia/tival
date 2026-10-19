@@ -938,6 +938,7 @@ export async function blockWhatsappUser(input: {
           "X-API-Key": creds.apiKey,
         },
         body: JSON.stringify({
+          messaging_product: "whatsapp",
           block_users: [{ user: to }],
         }),
       }
