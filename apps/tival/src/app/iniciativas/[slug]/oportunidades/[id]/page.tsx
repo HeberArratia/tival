@@ -12,6 +12,7 @@ import {
 import {
   AssignConsultantButton,
   CaseActions,
+  ConfirmMpButton,
   ConfirmTransferButton,
   CopyCalendlyLinkButton,
   MarkLostButton,
@@ -374,6 +375,19 @@ export default async function IniciativaOportunidadPage({
                         status={c.status}
                         paymentStatus={c.paymentStatus}
                         stageKey={currentStage?.key}
+                        hasPhone={Boolean(
+                          c.contact?.primaryPhone ?? phones[0]?.phone
+                        )}
+                        className="btn"
+                      />
+                      <ConfirmMpButton
+                        caseId={c.id}
+                        status={c.status}
+                        paymentStatus={c.paymentStatus}
+                        stageKey={currentStage?.key}
+                        hasPhone={Boolean(
+                          c.contact?.primaryPhone ?? phones[0]?.phone
+                        )}
                         className="btn"
                       />
                     </>

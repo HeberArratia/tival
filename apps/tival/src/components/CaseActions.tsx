@@ -295,12 +295,16 @@ export function AssignConsultantButton({
   );
 }
 
-/** Ops confirma transferencia (misma acción que markPaid / transfer). */
-export function ConfirmTransferButton({
+type ConfirmPaymentMethod = "transferencia" | "mercadopago";
+
+/** Ops confirma pago (transferencia o MP manual) con modal + switch WhatsApp. */
+function ConfirmPaymentButton({
   caseId,
   status,
   paymentStatus,
   stageKey,
+  method,
+  hasPhone = false,
   className = "btn btn-primary",
   stopPropagation = false,
 }: {
@@ -308,38 +312,227 @@ export function ConfirmTransferButton({
   status: string;
   paymentStatus: string;
   stageKey?: string;
+  method: ConfirmPaymentMethod;
+  hasPhone?: boolean;
   className?: string;
   stopPropagation?: boolean;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [notifyWhatsapp, setNotifyWhatsapp] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   if (!canConfirmTransfer({ status, paymentStatus, stageKey })) return null;
 
-  async function run(e: MouseEvent) {
-    if (stopPropagation) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
+  const isMp = method === "mercadopago";
+  const action = isMp ? "confirm_mp" : "confirm_transfer";
+  const label = isMp ? "Confirmar MP" : "Confirmar transferencia";
+  const title = isMp
+    ? "Ops confirma pago por Mercado Pago (manual, hasta tener integración)"
+    : "Ops confirma transferencia recibida";
+  const modalTitleId = isMp
+    ? "confirm-mp-modal-title"
+    : "confirm-transfer-modal-title";
+  const switchId = isMp
+    ? "confirm-mp-notify-whatsapp"
+    : "confirm-transfer-notify-whatsapp";
+
+  function openConfirm(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setError(null);
+    setNotifyWhatsapp(false);
+    setOpen(true);
+  }
+
+  async function confirm() {
     setLoading(true);
+    setError(null);
     try {
-      await postAction(caseId, "confirm_transfer");
+      const res = await postAction(caseId, action, { notifyWhatsapp });
+      if (!res.ok) {
+        setError(res.error ?? "No se pudo confirmar el pago");
+        return;
+      }
+      setOpen(false);
       router.refresh();
     } finally {
       setLoading(false);
     }
   }
 
+  const modal =
+    open && mounted
+      ? createPortal(
+          <div
+            className="modal-backdrop"
+            role="presentation"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!loading) setOpen(false);
+            }}
+          >
+            <div
+              className="modal-panel"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={modalTitleId}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <p className="panel-kicker">Lead entrante</p>
+              <h3 id={modalTitleId}>¿Confirmar pago?</h3>
+              <p className="lede" style={{ marginTop: "0.35rem" }}>
+                {isMp
+                  ? "Se marca como pagado por Mercado Pago y pasa a Diagnóstico pagado."
+                  : "Se marca como pagado por transferencia y pasa a Diagnóstico pagado."}
+              </p>
+
+              <label
+                className="modal-switch-row"
+                htmlFor={switchId}
+                title={
+                  hasPhone
+                    ? "Envía el template de pago confirmado por WhatsApp"
+                    : "Sin teléfono en el contacto"
+                }
+              >
+                <span>
+                  Avisar vía WhatsApp
+                  {!hasPhone ? (
+                    <span className="row-meta" style={{ display: "block" }}>
+                      Sin teléfono en el contacto
+                    </span>
+                  ) : null}
+                </span>
+                <input
+                  id={switchId}
+                  type="checkbox"
+                  role="switch"
+                  checked={notifyWhatsapp}
+                  disabled={loading || !hasPhone}
+                  onChange={(e) => setNotifyWhatsapp(e.target.checked)}
+                />
+              </label>
+
+              {error ? (
+                <p
+                  className="row-meta"
+                  style={{
+                    color: "var(--danger, #b33)",
+                    marginTop: "0.65rem",
+                  }}
+                >
+                  {error}
+                </p>
+              ) : null}
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={loading}
+                  onClick={() => setOpen(false)}
+                >
+                  No
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={loading}
+                  onClick={() => void confirm()}
+                >
+                  {loading ? "…" : isMp ? "Sí, confirmar MP" : "Sí, confirmar transferencia"}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
+
   return (
-    <button
-      type="button"
+    <>
+      <button
+        type="button"
+        className={className}
+        disabled={loading}
+        onClick={openConfirm}
+        title={title}
+      >
+        {loading && !open ? "…" : label}
+      </button>
+      {modal}
+    </>
+  );
+}
+
+/** Ops confirma transferencia recibida. */
+export function ConfirmTransferButton({
+  caseId,
+  status,
+  paymentStatus,
+  stageKey,
+  hasPhone = false,
+  className = "btn btn-primary",
+  stopPropagation = false,
+}: {
+  caseId: string;
+  status: string;
+  paymentStatus: string;
+  stageKey?: string;
+  hasPhone?: boolean;
+  className?: string;
+  stopPropagation?: boolean;
+}) {
+  return (
+    <ConfirmPaymentButton
+      caseId={caseId}
+      status={status}
+      paymentStatus={paymentStatus}
+      stageKey={stageKey}
+      method="transferencia"
+      hasPhone={hasPhone}
       className={className}
-      disabled={loading}
-      onClick={run}
-      title="Ops confirma transferencia recibida"
-    >
-      {loading ? "…" : "Confirmar transferencia"}
-    </button>
+      stopPropagation={stopPropagation}
+    />
+  );
+}
+
+/** Ops confirma MP manual (hasta tener integración). */
+export function ConfirmMpButton({
+  caseId,
+  status,
+  paymentStatus,
+  stageKey,
+  hasPhone = false,
+  className = "btn",
+  stopPropagation = false,
+}: {
+  caseId: string;
+  status: string;
+  paymentStatus: string;
+  stageKey?: string;
+  hasPhone?: boolean;
+  className?: string;
+  stopPropagation?: boolean;
+}) {
+  return (
+    <ConfirmPaymentButton
+      caseId={caseId}
+      status={status}
+      paymentStatus={paymentStatus}
+      stageKey={stageKey}
+      method="mercadopago"
+      hasPhone={hasPhone}
+      className={className}
+      stopPropagation={stopPropagation}
+    />
   );
 }
 

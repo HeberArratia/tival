@@ -56,11 +56,13 @@ export async function POST(
     const body = await request.json();
     const action = body?.action as string;
 
-    if (action === "confirm_transfer") {
+    if (action === "confirm_transfer" || action === "confirm_mp") {
+      const notifyWhatsapp = body?.notifyWhatsapp === true;
       const result = await markPaid({
         caseId: id,
-        method: "transferencia",
+        method: action === "confirm_mp" ? "mercadopago" : "transferencia",
         confirmedBy: actor,
+        notifyWhatsapp,
       });
       return NextResponse.json({ ok: true, case: result.case });
     }

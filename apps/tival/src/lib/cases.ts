@@ -637,6 +637,8 @@ export async function markPaid(input: {
   method: "mercadopago" | "transferencia";
   mpPaymentId?: string | null;
   confirmedBy: string;
+  /** Default true (webhooks / integraciones). Ops UI puede pasar false. */
+  notifyWhatsapp?: boolean;
 }): Promise<{ case: CaseRow; alreadyPaid: boolean }> {
   const db = await getDb();
   const [current] = input.caseId
@@ -719,13 +721,16 @@ export async function markPaid(input: {
     console.error("[paid-slack]", e);
   }
 
-  try {
-    const { notifyPaymentConfirmedWhatsapp } = await import(
-      "@/lib/integrations/kapso-whatsapp"
-    );
-    await notifyPaymentConfirmedWhatsapp(paidCase);
-  } catch (e) {
-    console.error("[paid-whatsapp]", e);
+  const shouldNotifyWhatsapp = input.notifyWhatsapp !== false;
+  if (shouldNotifyWhatsapp) {
+    try {
+      const { notifyPaymentConfirmedWhatsapp } = await import(
+        "@/lib/integrations/kapso-whatsapp"
+      );
+      await notifyPaymentConfirmedWhatsapp(paidCase);
+    } catch (e) {
+      console.error("[paid-whatsapp]", e);
+    }
   }
 
   void import("@/inngest/functions/meeting-remind").then(

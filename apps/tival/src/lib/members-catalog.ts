@@ -54,6 +54,7 @@ export function memberInitials(name: string): string {
 /** Acciones de handoff consultoría — ownership sugerido (no permiso). */
 export type HandoffActionId =
   | "confirm_transfer"
+  | "confirm_mp"
   | "assign_consultant"
   | "mark_lost_unpaid"
   | "mark_realizado"
@@ -65,6 +66,7 @@ export type ActionOwner = WorkspaceRole;
 
 export const HANDOFF_ACTION_OWNER: Record<HandoffActionId, ActionOwner> = {
   confirm_transfer: "ops",
+  confirm_mp: "ops",
   assign_consultant: "ops",
   mark_lost_unpaid: "ops",
   mark_realizado: "consultor",
@@ -75,6 +77,7 @@ export const HANDOFF_ACTION_OWNER: Record<HandoffActionId, ActionOwner> = {
 
 export const HANDOFF_ACTION_LABEL: Record<HandoffActionId, string> = {
   confirm_transfer: "Confirmar transferencia",
+  confirm_mp: "Confirmar MP",
   assign_consultant: "Asignar consultor",
   mark_lost_unpaid: "Marcar perdido (no pagó)",
   mark_realizado: "Marcar diagnóstico realizado",
@@ -108,6 +111,7 @@ export function handoffActionsForCase(input: {
 
   if (!paid && open && (stage === "lead" || stage === "pagado" || !stage)) {
     ops.push("confirm_transfer");
+    ops.push("confirm_mp");
     ops.push("mark_lost_unpaid");
   }
 

@@ -23,6 +23,7 @@ import {
 } from "@/components/AppShell";
 import {
   AssignConsultantButton,
+  ConfirmMpButton,
   ConfirmTransferButton,
   MarkLostButton,
   MarkPropuestaEnviadaButton,
@@ -194,7 +195,19 @@ function HandoffCaseRow({
             status={c.status}
             paymentStatus={c.paymentStatus}
             stageKey={stage?.key}
+            hasPhone={Boolean(c.contact?.primaryPhone)}
             className="btn btn-primary"
+            stopPropagation
+          />
+        ) : null}
+        {actions.includes("confirm_mp") ? (
+          <ConfirmMpButton
+            caseId={c.id}
+            status={c.status}
+            paymentStatus={c.paymentStatus}
+            stageKey={stage?.key}
+            hasPhone={Boolean(c.contact?.primaryPhone)}
+            className="btn"
             stopPropagation
           />
         ) : null}
