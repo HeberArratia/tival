@@ -596,6 +596,27 @@ export async function cancelCase(input: {
     actor
   );
 
+  // Duplicado ops (superseded): cancelar reunión Calendar/Meet de esta opp.
+  // No corre en webhook Calendly (evitar loop). Sin WhatsApp de no_pago.
+  if (fromOps && input.reason === "superseded") {
+    try {
+      const { cancelCaseMeetingAndLog } = await import(
+        "@/lib/integrations/cancel-case-meeting"
+      );
+      await cancelCaseMeetingAndLog({
+        caseId: updated.id,
+        actor,
+        reason: "Duplicado · quedó vigente otra oportunidad en Tival",
+      });
+    } catch (err) {
+      console.error(
+        "[cancelCase.cancelMeeting]",
+        updated.id,
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
+
   return updated;
 }
 

@@ -37,9 +37,13 @@ export type CancelCaseMeetingResult =
       status?: number;
     };
 
+const DEFAULT_CANCEL_REASON = "No pagó · oportunidad perdida en Tival";
+
 export async function cancelCaseMeeting(
-  caseId: string
+  caseId: string,
+  opts?: { reason?: string }
 ): Promise<CancelCaseMeetingResult> {
+  const cancelReason = opts?.reason?.trim() || DEFAULT_CANCEL_REASON;
   const db = await getDb();
   const [row] = await db
     .select()
@@ -63,7 +67,7 @@ export async function cancelCaseMeeting(
       const canceled = await cancelCalendlyScheduledEvent({
         apiToken,
         eventUuid: row.calendlyEventUuid,
-        reason: "No pagó · oportunidad perdida en Tival",
+        reason: cancelReason,
       });
       if (canceled.ok) {
         return {
@@ -183,10 +187,14 @@ async function logCancelResult(
 export async function cancelCaseMeetingAndLog(input: {
   caseId: string;
   actor?: string;
+  /** Motivo que ve el invitee en Calendly (default: no_pago). */
+  reason?: string;
 }): Promise<CancelCaseMeetingResult> {
   const actor = input.actor ?? "integracion";
   try {
-    const result = await cancelCaseMeeting(input.caseId);
+    const result = await cancelCaseMeeting(input.caseId, {
+      reason: input.reason,
+    });
     await logCancelResult(input.caseId, result, actor);
     return result;
   } catch (err) {

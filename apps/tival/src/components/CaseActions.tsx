@@ -991,7 +991,7 @@ export function CancelSupersededButton({
       e.stopPropagation();
     }
     const ok = window.confirm(
-      "¿Cancelar esta oportunidad? Queda fuera del canvas (motivo: superseded). Usalo para duplicados cuando otra opp es la vigente."
+      "¿Cancelar esta oportunidad? Queda fuera del canvas (motivo: superseded) y se cancela la reunión en Calendly/Meet. Usalo para duplicados cuando otra opp es la vigente."
     );
     if (!ok) return;
     setLoading(true);
@@ -1009,7 +1009,7 @@ export function CancelSupersededButton({
       className={className}
       disabled={loading}
       onClick={run}
-      title="Cancelar duplicado · superseded (queda la otra opp)"
+      title="Cancelar duplicado · superseded (queda la otra opp; cancela Calendly/Meet)"
     >
       {loading ? "…" : "Cancelar · duplicado"}
     </button>
