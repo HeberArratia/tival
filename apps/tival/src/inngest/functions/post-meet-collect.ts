@@ -14,6 +14,22 @@ import { tivalRuntimeEnv } from "@/lib/integrations/runtime-env";
 
 type PostMeetEventData = { caseId: string };
 
+/** True si el slot de reunión del case sigue siendo el que memoizó este run. */
+async function isPostMeetSlotCurrent(
+  caseId: string,
+  expectedScheduledAt: string | null
+): Promise<boolean> {
+  const db = await getDb();
+  const [row] = await db
+    .select({ scheduledAt: cases.scheduledAt })
+    .from(cases)
+    .where(eq(cases.id, caseId))
+    .limit(1);
+  if (!row) return false;
+  const current = row.scheduledAt?.toISOString() ?? null;
+  return current === expectedScheduledAt;
+}
+
 /**
  * Tras la reunión: espera → poll Meet API → mueve Notas/recording a Drive del case.
  */
@@ -50,7 +66,10 @@ export const collectPostMeetArtifacts = inngest.createFunction(
     });
 
     await step.run("mark-scheduled", async () => {
+      const current = await isPostMeetSlotCurrent(caseId, meta.scheduledAt);
+      if (!current) return { skipped: true as const, reason: "superseded" };
       await setPostMeetState(caseId, { status: "scheduled", error: null });
+      return { skipped: false as const };
     });
 
     const lookAfter = new Date(
@@ -64,13 +83,31 @@ export const collectPostMeetArtifacts = inngest.createFunction(
       await step.sleepUntil("wait-until-after-meeting", lookAfter);
     }
 
+    const stillCurrentAfterWait = await step.run(
+      "check-slot-after-wait",
+      async () => isPostMeetSlotCurrent(caseId, meta.scheduledAt)
+    );
+    if (!stillCurrentAfterWait) {
+      return { ok: true, status: "superseded" as const };
+    }
+
     for (let i = 0; i < POST_MEET_MAX_POLLS; i += 1) {
+      const slotOk = await step.run(`check-slot-${i}`, async () =>
+        isPostMeetSlotCurrent(caseId, meta.scheduledAt)
+      );
+      if (!slotOk) {
+        return { ok: true, status: "superseded" as const };
+      }
+
       const result = await step.run(`attempt-${i}`, async () =>
         attemptPostMeetCollect(caseId)
       );
 
       if (!result.ok) {
         await step.run(`mark-failed-${i}`, async () => {
+          if (!(await isPostMeetSlotCurrent(caseId, meta.scheduledAt))) {
+            return;
+          }
           await setPostMeetState(caseId, {
             status: "failed",
             error: result.error,
@@ -101,6 +138,9 @@ export const collectPostMeetArtifacts = inngest.createFunction(
     }
 
     await step.run("mark-timeout", async () => {
+      if (!(await isPostMeetSlotCurrent(caseId, meta.scheduledAt))) {
+        return;
+      }
       await setPostMeetState(caseId, {
         status: "timeout",
         error: "artifacts_not_ready_within_window",
@@ -118,7 +158,10 @@ export const collectPostMeetArtifacts = inngest.createFunction(
   }
 );
 
-/** Encola la recolección (no bloquea). Seguro llamar varias veces. */
+/**
+ * Encola la recolección (no bloquea).
+ * Idempotente por case + `scheduledAt`: una reagenda genera un event id nuevo.
+ */
 export async function schedulePostMeetCollect(caseId: string) {
   if (!isInngestSendEnabled()) {
     console.info(
@@ -136,8 +179,16 @@ export async function schedulePostMeetCollect(caseId: string) {
   }
 
   try {
+    const db = await getDb();
+    const [row] = await db
+      .select({ scheduledAt: cases.scheduledAt })
+      .from(cases)
+      .where(eq(cases.id, caseId))
+      .limit(1);
+    const slot = row?.scheduledAt?.toISOString() ?? "unscheduled";
+
     await inngest.send({
-      id: `post-meet-${caseId}`,
+      id: `post-meet-${caseId}-${slot}`,
       name: "case/post-meet.collect",
       data: { caseId } satisfies PostMeetEventData,
     });

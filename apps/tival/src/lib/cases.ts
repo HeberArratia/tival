@@ -376,6 +376,8 @@ export async function rescheduleCase(input: {
   if (input.rescheduleUrl) q.reschedule_url = input.rescheduleUrl;
   if (input.cancelUrl) q.cancel_url = input.cancelUrl;
   delete q.awaiting_reschedule;
+  /** Slot nuevo → el post-meet anterior (timeout/waiting) ya no aplica. */
+  delete q.post_meet;
 
   const [updated] = await db
     .update(cases)
@@ -401,6 +403,7 @@ export async function rescheduleCase(input: {
   });
 
   // WhatsApp reagenda + reminder T-1h: post enrich-meet (reason=reschedule).
+  // Post-meet se reencola en applyMeetEnrichment (event id por scheduledAt).
   return updated;
 }
 
@@ -429,6 +432,8 @@ export async function mergeScheduleIntoCase(input: {
   const q = clearAwaitingReschedule(current.qualification);
   if (input.rescheduleUrl) q.reschedule_url = input.rescheduleUrl;
   if (input.cancelUrl) q.cancel_url = input.cancelUrl;
+  /** Slot nuevo → el post-meet anterior (timeout/waiting) ya no aplica. */
+  delete q.post_meet;
 
   const previousUuid = current.calendlyEventUuid;
 
@@ -460,6 +465,7 @@ export async function mergeScheduleIntoCase(input: {
   );
 
   // WhatsApp reagenda + reminder T-1h: post enrich-meet (reason=reschedule).
+  // Post-meet se reencola en applyMeetEnrichment (event id por scheduledAt).
   return updated;
 }
 
