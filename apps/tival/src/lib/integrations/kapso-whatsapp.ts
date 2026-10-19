@@ -943,17 +943,20 @@ export async function blockWhatsappUser(input: {
       }
     );
     const text = await res.text().catch(() => "");
-    let body: { success?: boolean; error?: { message?: string } } | null =
-      null;
+    type KapsoBlockBody = {
+      success?: boolean;
+      error?: { message?: string };
+    };
+    let parsed: KapsoBlockBody | null = null;
     try {
-      body = text ? (JSON.parse(text) as typeof body) : null;
+      parsed = text ? (JSON.parse(text) as KapsoBlockBody) : null;
     } catch {
-      body = null;
+      parsed = null;
     }
 
     if (!res.ok) {
       const error =
-        body?.error?.message?.trim() ||
+        parsed?.error?.message?.trim() ||
         text.slice(0, 200) ||
         `HTTP ${res.status}`;
       await db.insert(caseEvents).values({
