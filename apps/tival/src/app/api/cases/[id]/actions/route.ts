@@ -32,6 +32,7 @@ import { isLostReason } from "@/lib/lost-reasons";
 import { isMemberId } from "@/lib/members-catalog";
 import { retryN8nProposal } from "@/lib/integrations/n8n-proposal";
 import {
+  blockWhatsappUser,
   notifyNoPagoCancelledWhatsapp,
   requestPaymentProofWhatsapp,
 } from "@/lib/integrations/kapso-whatsapp";
@@ -91,6 +92,28 @@ export async function POST(
         to: result.to,
         wamid: result.wamid,
       });
+    }
+
+    if (action === "block_whatsapp") {
+      const result = await blockWhatsappUser({
+        caseId: id,
+        actor,
+      });
+      if (!result.ok) {
+        const status =
+          result.error === "case_not_found"
+            ? 404
+            : result.error === "kapso_not_configured" ||
+                result.error === "kapso_api_key_missing" ||
+                result.error === "kapso_phone_number_id_missing"
+              ? 503
+              : 400;
+        return NextResponse.json(
+          { ok: false, error: result.error },
+          { status }
+        );
+      }
+      return NextResponse.json({ ok: true, to: result.to });
     }
 
     if (action === "assign_consultant") {

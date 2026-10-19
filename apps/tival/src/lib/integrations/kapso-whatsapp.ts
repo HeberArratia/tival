@@ -6,6 +6,7 @@
  * - Aviso propuesta enviada al correo (markPropuestaEnviada)
  * - Recordatorio T-1h (Inngest, solo pagados)
  * - Reagenda post-enrich (Inngest, solo pagados)
+ * - Bloqueo de usuario (block_users)
  */
 
 import { eq } from "drizzle-orm";
@@ -891,5 +892,102 @@ export async function notifyRescheduleWhatsapp(
       actor,
     });
     return { ok: false, skipped: false, error };
+  }
+}
+
+export type BlockWhatsappUserResult =
+  | { ok: true; to: string }
+  | { ok: false; error: string };
+
+/**
+ * Bloquea el WhatsApp del contacto en el número de negocio (Meta block_users vía Kapso).
+ * El usuario deja de poder escribir a ese phone_number_id.
+ */
+export async function blockWhatsappUser(input: {
+  caseId: string;
+  actor: string;
+}): Promise<BlockWhatsappUserResult> {
+  const db = await getDb();
+  const [row] = await db
+    .select()
+    .from(cases)
+    .where(eq(cases.id, input.caseId))
+    .limit(1);
+  if (!row) return { ok: false, error: "case_not_found" };
+
+  const creds = await getKapsoCredentialsForWorkspace(row.workspaceId);
+  if (!creds) return { ok: false, error: "kapso_not_configured" };
+
+  if (!row.contactId) {
+    return { ok: false, error: "missing_contact" };
+  }
+
+  const { phone: rawPhone } = await resolveContactPhone(row.contactId);
+  if (!rawPhone) return { ok: false, error: "missing_phone" };
+
+  const to = toWhatsAppRecipient(rawPhone);
+  if (!to) return { ok: false, error: "invalid_phone" };
+
+  try {
+    const res = await fetch(
+      `${KAPSO_BASE}/${creds.phoneNumberId}/block_users`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-API-Key": creds.apiKey,
+        },
+        body: JSON.stringify({
+          block_users: [{ user: to }],
+        }),
+      }
+    );
+    const text = await res.text().catch(() => "");
+    let body: { success?: boolean; error?: { message?: string } } | null =
+      null;
+    try {
+      body = text ? (JSON.parse(text) as typeof body) : null;
+    } catch {
+      body = null;
+    }
+
+    if (!res.ok) {
+      const error =
+        body?.error?.message?.trim() ||
+        text.slice(0, 200) ||
+        `HTTP ${res.status}`;
+      await db.insert(caseEvents).values({
+        caseId: row.id,
+        type: "whatsapp_user_blocked_failed",
+        payload: {
+          to,
+          status: res.status,
+          error,
+        },
+        actor: input.actor,
+      });
+      return { ok: false, error: "kapso_block_failed" };
+    }
+
+    await db.insert(caseEvents).values({
+      caseId: row.id,
+      type: "whatsapp_user_blocked",
+      payload: {
+        to,
+        phoneNumberId: creds.phoneNumberId,
+      },
+      actor: input.actor,
+    });
+
+    return { ok: true, to };
+  } catch (e) {
+    const error = e instanceof Error ? e.message : "kapso_block_failed";
+    await db.insert(caseEvents).values({
+      caseId: row.id,
+      type: "whatsapp_user_blocked_failed",
+      payload: { to, error },
+      actor: input.actor,
+    });
+    return { ok: false, error: "kapso_block_failed" };
   }
 }

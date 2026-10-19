@@ -548,7 +548,146 @@ const WHATSAPP_ERROR_LABEL: Record<string, string> = {
   kapso_api_key_missing: "Falta API key de Kapso",
   kapso_phone_number_id_missing: "Falta phone number ID de Kapso",
   kapso_send_failed: "Kapso no pudo enviar el mensaje",
+  kapso_block_failed: "Kapso no pudo bloquear el número",
 };
+
+/** Bloquear WhatsApp del contacto en el número de negocio. */
+export function canBlockWhatsapp(input: { hasPhone?: boolean }) {
+  return Boolean(input.hasPhone);
+}
+
+export function BlockWhatsappButton({
+  caseId,
+  hasPhone = false,
+  className = "btn",
+  onConfirmOpenChange,
+}: {
+  caseId: string;
+  hasPhone?: boolean;
+  className?: string;
+  /** Avisa al menú padre para no desmontar mientras el modal está abierto. */
+  onConfirmOpenChange?: (open: boolean) => void;
+}) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!canBlockWhatsapp({ hasPhone })) return null;
+
+  function setConfirmOpen(next: boolean) {
+    setOpen(next);
+    onConfirmOpenChange?.(next);
+  }
+
+  function openConfirm(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setError(null);
+    setConfirmOpen(true);
+  }
+
+  async function confirmBlock() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await postAction(caseId, "block_whatsapp");
+      if (!res.ok) {
+        setError(
+          WHATSAPP_ERROR_LABEL[res.error ?? ""] ??
+            res.error ??
+            "No se pudo bloquear"
+        );
+        return;
+      }
+      setConfirmOpen(false);
+      router.refresh();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const modal =
+    open && mounted
+      ? createPortal(
+          <div
+            className="modal-backdrop"
+            role="presentation"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!loading) setConfirmOpen(false);
+            }}
+          >
+            <div
+              className="modal-panel"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="block-whatsapp-modal-title"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <p className="panel-kicker">WhatsApp</p>
+              <h3 id="block-whatsapp-modal-title">¿Bloquear este número?</h3>
+              <p className="lede" style={{ marginTop: "0.35rem" }}>
+                No podrá escribirte más a este número de negocio. Podés
+                desbloquearlo después desde Kapso / Meta si hace falta.
+              </p>
+
+              {error ? (
+                <p
+                  className="row-meta"
+                  style={{
+                    color: "var(--danger, #b33)",
+                    marginTop: "0.65rem",
+                  }}
+                >
+                  {error}
+                </p>
+              ) : null}
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={loading}
+                  onClick={() => setConfirmOpen(false)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={loading}
+                  onClick={() => void confirmBlock()}
+                >
+                  {loading ? "…" : "Sí, bloquear"}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
+
+  return (
+    <>
+      <button
+        type="button"
+        className={className}
+        disabled={loading}
+        onClick={openConfirm}
+        title="Bloquea este contacto en WhatsApp Business (Kapso / Meta)"
+      >
+        {loading && !open ? "…" : "Bloquear WhatsApp"}
+      </button>
+      {modal}
+    </>
+  );
+}
 
 /** Pedir comprobante de pago por WhatsApp (template Moira). */
 export function RequestPaymentWhatsappButton({
@@ -1492,6 +1631,8 @@ export function CaseActions({
   const [open, setOpen] = useState(false);
   /** Mantener MarkLost montado mientras su modal esté abierto (el menú se cierra). */
   const [lostConfirmOpen, setLostConfirmOpen] = useState(false);
+  /** Idem para Bloquear WhatsApp. */
+  const [blockConfirmOpen, setBlockConfirmOpen] = useState(false);
 
   const showNoShow = canOfferReschedule({ status, stageKey, hasScheduledAt });
   const showNoShowLost = canMarkNoShowActions({
@@ -1502,17 +1643,19 @@ export function CaseActions({
   const showLost = canMarkLost({ status, paymentStatus, stageKey });
   const showCancel = canCancelSuperseded({ status, stageKey });
   const showLink = Boolean(calendlyLink);
+  const showBlock = canBlockWhatsapp({ hasPhone });
   const hasAnything =
     showNoShow ||
     showNoShowLost ||
     showLost ||
     showCancel ||
     showLink ||
-    canGenerateProposal;
+    canGenerateProposal ||
+    showBlock;
 
   if (!hasAnything) return null;
 
-  const showMenu = open || lostConfirmOpen;
+  const showMenu = open || lostConfirmOpen || blockConfirmOpen;
 
   return (
     <div className="case-actions" style={{ position: "relative" }}>
@@ -1573,6 +1716,15 @@ export function CaseActions({
             caseId={caseId}
             canGenerate={canGenerateProposal}
             className={MENU_ITEM}
+          />
+          <BlockWhatsappButton
+            caseId={caseId}
+            hasPhone={hasPhone}
+            className={MENU_ITEM}
+            onConfirmOpenChange={(next) => {
+              setBlockConfirmOpen(next);
+              if (next) setOpen(false);
+            }}
           />
         </div>
       ) : null}

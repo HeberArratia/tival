@@ -591,6 +591,16 @@ const EVENT_LABELS: Record<
     kind: "efecto",
     result: "info",
   },
+  whatsapp_user_blocked: {
+    title: "Humano · WhatsApp bloqueado",
+    kind: "humano",
+    result: "ok",
+  },
+  whatsapp_user_blocked_failed: {
+    title: "Humano · WhatsApp bloqueo falló",
+    kind: "humano",
+    result: "fail",
+  },
   drive_folder_created: {
     title: "Efecto · carpeta Drive creada",
     kind: "efecto",
