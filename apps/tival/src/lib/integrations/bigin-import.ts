@@ -350,6 +350,27 @@ export function isDiagnosticoAgendado(phase: string): boolean {
   return fold(phase) === "diagnostico agendado";
 }
 
+/**
+ * Pagado si la etapa es Diagnóstico pagado o una posterior.
+ * Perdido solo cuenta si el motivo es no compró (ya pasó el diagnóstico).
+ * Sesión no pagada, no asistió y perdido sin motivo quedan sin pago.
+ */
+export function biginPaymentStatus(
+  stageKey: string,
+  lostReason: string | null
+): "paid" | "none" {
+  if (
+    stageKey === "pagado" ||
+    stageKey === "realizado" ||
+    stageKey === "propuesta_enviada" ||
+    stageKey === "ganado"
+  ) {
+    return "paid";
+  }
+  if (stageKey === "perdido" && lostReason === "no_compra") return "paid";
+  return "none";
+}
+
 export function planBiginCase(row: BiginDealRow): PlannedBiginCase | null {
   const stageKey = STAGE_BY_PHASE[fold(row.phase)];
   if (!stageKey) return null;
