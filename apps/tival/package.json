@@ -23,7 +23,8 @@
     "db:migrate-contacts": "tsx scripts/migrate-contacts-companies.ts",
     "db:migrate-kapso": "tsx scripts/migrate-kapso-provider.ts",
     "db:seed-demo": "tsx scripts/seed-demo-identity.ts",
-    "db:wipe-opps": "tsx scripts/wipe-identity-opps.ts"
+    "db:wipe-opps": "tsx scripts/wipe-identity-opps.ts",
+    "import:bigin": "tsx scripts/import-bigin.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",

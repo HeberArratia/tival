@@ -759,6 +759,21 @@ export function extrasForCase(caseRow: {
   if (tracking?.utm_content)
     extras.utm_content = String(tracking.utm_content);
   if (tracking?.fbclid) extras.fbclid = String(tracking.fbclid);
+  if (typeof q.imported_from === "string" && q.imported_from.trim()) {
+    extras.imported_from = q.imported_from.trim();
+  }
+  if (typeof q.bigin_deal_id === "string" && q.bigin_deal_id.trim()) {
+    extras.bigin_deal_id = q.bigin_deal_id.trim();
+  }
+  if (typeof q.convocatoria === "string" && q.convocatoria.trim()) {
+    extras.convocatoria = q.convocatoria.trim();
+  }
+  if (typeof q.importe_clp === "number" && Number.isFinite(q.importe_clp)) {
+    extras.importe_clp = String(Math.round(q.importe_clp));
+  }
+  if (typeof q.fecha_cierre === "string" && q.fecha_cierre.trim()) {
+    extras.fecha_cierre = q.fecha_cierre.trim();
+  }
   return extras;
 }
 
