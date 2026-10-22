@@ -415,33 +415,24 @@ function isReadyState(state?: string | null) {
   return READY_STATES.has(u) || u.includes("GENERATED") || u.includes("READY");
 }
 
-/** Artefactos listos para mover (Notas Gemini prioritarias + recording/transcript). */
-export async function fetchReadyMeetArtifacts(input: {
+function conferenceDurationMs(conference: MeetConferenceRecord): number {
+  if (!conference.startTime || !conference.endTime) return 0;
+  const ms =
+    new Date(conference.endTime).getTime() -
+    new Date(conference.startTime).getTime();
+  return Number.isFinite(ms) && ms > 0 ? ms : 0;
+}
+
+async function artifactsForConference(input: {
   accessToken: string;
-  meetingCode: string;
+  conference: MeetConferenceRecord;
 }): Promise<
-  | {
-      ok: true;
-      conference: MeetConferenceRecord | null;
-      artifacts: MeetArtifact[];
-      ended: boolean;
-    }
-  | { ok: false; error: string }
+  { ok: true; artifacts: MeetArtifact[] } | { ok: false; error: string }
 > {
-  const listed = await listConferenceRecordsByMeetingCode(input);
-  if (!listed.ok) return listed;
-
-  const conference = listed.records[0] ?? null;
-  if (!conference?.name) {
-    return { ok: true, conference: null, artifacts: [], ended: false };
-  }
-
-  const ended = Boolean(conference.endTime);
   const artifacts: MeetArtifact[] = [];
-
   const notes = await listSmartNotes({
     accessToken: input.accessToken,
-    conferenceName: conference.name,
+    conferenceName: input.conference.name,
   });
   if (!notes.ok) return notes;
   for (const n of notes.notes) {
@@ -458,7 +449,7 @@ export async function fetchReadyMeetArtifacts(input: {
 
   const recs = await listRecordings({
     accessToken: input.accessToken,
-    conferenceName: conference.name,
+    conferenceName: input.conference.name,
   });
   if (!recs.ok) return recs;
   for (const r of recs.recordings) {
@@ -475,7 +466,7 @@ export async function fetchReadyMeetArtifacts(input: {
 
   const trs = await listTranscripts({
     accessToken: input.accessToken,
-    conferenceName: conference.name,
+    conferenceName: input.conference.name,
   });
   if (!trs.ok) return trs;
   for (const t of trs.transcripts) {
@@ -490,5 +481,64 @@ export async function fetchReadyMeetArtifacts(input: {
     }
   }
 
-  return { ok: true, conference, artifacts, ended };
+  return { ok: true, artifacts };
+}
+
+/**
+ * Artefactos listos para mover (Notas Gemini + recording/transcript).
+ * Un mismo Meet puede tener varios conferenceRecords (p. ej. un reingreso
+ * de segundos). Elegimos el que ya tiene archivos; si ninguno, el más largo.
+ */
+export async function fetchReadyMeetArtifacts(input: {
+  accessToken: string;
+  meetingCode: string;
+}): Promise<
+  | {
+      ok: true;
+      conference: MeetConferenceRecord | null;
+      artifacts: MeetArtifact[];
+      ended: boolean;
+    }
+  | { ok: false; error: string }
+> {
+  const listed = await listConferenceRecordsByMeetingCode(input);
+  if (!listed.ok) return listed;
+
+  const records = listed.records.filter((r) => r.name);
+  if (records.length === 0) {
+    return { ok: true, conference: null, artifacts: [], ended: false };
+  }
+
+  let best: {
+    conference: MeetConferenceRecord;
+    artifacts: MeetArtifact[];
+  } | null = null;
+
+  for (const conference of records) {
+    const loaded = await artifactsForConference({
+      accessToken: input.accessToken,
+      conference,
+    });
+    if (!loaded.ok) return loaded;
+
+    const candidate = { conference, artifacts: loaded.artifacts };
+    if (!best) {
+      best = candidate;
+      continue;
+    }
+    const betterArtifacts =
+      candidate.artifacts.length > best.artifacts.length;
+    const sameArtifactsLonger =
+      candidate.artifacts.length === best.artifacts.length &&
+      conferenceDurationMs(candidate.conference) >
+        conferenceDurationMs(best.conference);
+    if (betterArtifacts || sameArtifactsLonger) best = candidate;
+  }
+
+  return {
+    ok: true,
+    conference: best!.conference,
+    artifacts: best!.artifacts,
+    ended: Boolean(best!.conference.endTime),
+  };
 }
