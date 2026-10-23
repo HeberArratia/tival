@@ -11,7 +11,6 @@ export function OpportunityTabs({
   timeline,
   productsCount = 0,
   notesCount = 0,
-  productsTotalLabel,
   initialTab = "general",
 }: {
   general: ReactNode;
@@ -20,7 +19,6 @@ export function OpportunityTabs({
   timeline: ReactNode;
   productsCount?: number;
   notesCount?: number;
-  productsTotalLabel?: string | null;
   initialTab?: OpportunityTabId;
 }) {
   const [tab, setTab] = useState<OpportunityTabId>(initialTab);
@@ -71,12 +69,6 @@ export function OpportunityTabs({
           Timeline
         </button>
       </div>
-
-      {tab === "productos" && productsTotalLabel ? (
-        <p className="row-meta" style={{ margin: "0.65rem 0 0" }}>
-          Total · {productsTotalLabel}
-        </p>
-      ) : null}
 
       <div className="opp-tab-panel" role="tabpanel">
         {tab === "general" ? general : null}

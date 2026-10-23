@@ -149,10 +149,13 @@ export function AppShell({
 export function Topbar({
   title,
   subtitle,
+  aside,
   actions,
 }: {
   title: string;
   subtitle?: string;
+  /** Dato fijo a la derecha del título, visible en toda la ficha. */
+  aside?: React.ReactNode;
   actions?: React.ReactNode;
 }) {
   return (
@@ -161,6 +164,7 @@ export function Topbar({
         <h1>{title}</h1>
         {subtitle ? <p>{subtitle}</p> : null}
       </div>
+      {aside}
       {actions ? <div className="topbar-actions">{actions}</div> : null}
     </header>
   );

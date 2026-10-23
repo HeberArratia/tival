@@ -18,7 +18,11 @@ import {
 import { isDealFit, type DealFit } from "@/lib/deal-fits";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { canAssignConsultant } from "@/lib/members-catalog";
-import { toProductOption, type ProductOption } from "@/lib/products";
+import {
+  toProductOption,
+  type OpportunityProductLine,
+  type ProductOption,
+} from "@/lib/products";
 import { workspaceSegments } from "@/lib/segments";
 import { isTerminalStageKey } from "@/lib/terminal-stages";
 
@@ -120,6 +124,7 @@ async function postAction(
     dealFit?: string | null;
     region?: string | null;
     productKeys?: string[] | null;
+    products?: OpportunityProductLine[] | null;
     consultantId?: string | null;
     segmento?: string | null;
   }
@@ -1352,12 +1357,13 @@ export function MarkRealizadoButton({
   currentClosingScore,
   currentDealFit,
   currentRegion,
-  currentProductKeys,
+  currentLines,
   productOptions: productOptionsProp,
   /** Segmento sugerido por el wizard (prefill). */
   suggestedSegmento = null,
   /** Segmento ya confirmado (si existe). */
   currentSegmento = null,
+  creditClp = 0,
 }: {
   caseId: string;
   status: string;
@@ -1367,7 +1373,9 @@ export function MarkRealizadoButton({
   currentClosingScore?: string | null;
   currentDealFit?: string | null;
   currentRegion?: string | null;
-  currentProductKeys?: string[];
+  currentLines?: OpportunityProductLine[];
+  /** Crédito de diagnóstico aplicado al agregar. 0 fuera de esa iniciativa. */
+  creditClp?: number;
   productOptions?: ProductOption[];
   suggestedSegmento?: string | null;
   currentSegmento?: string | null;
@@ -1387,8 +1395,8 @@ export function MarkRealizadoButton({
   const [region, setRegion] = useState<ChileRegion | null>(
     isChileRegion(currentRegion) ? currentRegion : null
   );
-  const [productKeys, setProductKeys] = useState<string[]>(
-    currentProductKeys ?? []
+  const [lines, setLines] = useState<OpportunityProductLine[]>(
+    currentLines ?? []
   );
   const [productOptions, setProductOptions] = useState<ProductOption[]>(
     productOptionsProp ?? []
@@ -1400,7 +1408,7 @@ export function MarkRealizadoButton({
       setScore(isClosingScore(currentClosingScore) ? currentClosingScore : null);
       setDealFit(isDealFit(currentDealFit) ? currentDealFit : null);
       setRegion(isChileRegion(currentRegion) ? currentRegion : null);
-      setProductKeys(currentProductKeys ?? []);
+      setLines(currentLines ?? []);
       setSegmento(
         currentSegmento?.trim() || suggestedSegmento?.trim() || null
       );
@@ -1427,7 +1435,7 @@ export function MarkRealizadoButton({
     currentClosingScore,
     currentDealFit,
     currentRegion,
-    currentProductKeys,
+    currentLines,
     productOptionsProp,
     suggestedSegmento,
     currentSegmento,
@@ -1450,7 +1458,7 @@ export function MarkRealizadoButton({
         closingScore: score,
         dealFit,
         region,
-        productKeys,
+        products: lines,
         segmento,
       });
       setOpen(false);
@@ -1559,9 +1567,10 @@ export function MarkRealizadoButton({
             <div className="region-editor" style={{ marginTop: "0.85rem" }}>
               <label className="field-label">Productos</label>
               <ProductSelect
-                value={productKeys}
+                value={lines}
                 options={productOptions}
-                onChange={setProductKeys}
+                creditClp={creditClp}
+                onChange={setLines}
                 disabled={loading}
               />
             </div>

@@ -19,6 +19,7 @@ import {
   FAKE_STAGES,
   FAKE_WORKSPACE,
   fakeEventsFor,
+  initiativeForCase,
   isFakeDataEnabled,
   playbookMetaById,
 } from "@/lib/fake-data";
@@ -30,6 +31,14 @@ import {
   type ClosingScore,
 } from "@/lib/closing-scores";
 import { isDealFit, type DealFit } from "@/lib/deal-fits";
+import {
+  diagnosticoCreditForSlug,
+  importeClpFromQualification,
+  materializeOpportunityPrices,
+  toProductOption,
+  type OpportunityProductLine,
+} from "@/lib/products";
+import { listProducts } from "@/lib/products-db";
 import {
   getCompanyById,
   isContactLinkedToCompany,
@@ -880,6 +889,21 @@ export async function markLost(input: {
   return updated;
 }
 
+async function pricedLinesForCase(
+  current: CaseRow,
+  lines: { key: string; priceClp: number | null }[]
+): Promise<OpportunityProductLine[]> {
+  const catalog = await listProducts({ activeOnly: false }).catch(() => []);
+  const creditClp = diagnosticoCreditForSlug(initiativeForCase(current)?.slug);
+  const importeClp = importeClpFromQualification(
+    (current.qualification ?? null) as Record<string, unknown> | null
+  );
+  return materializeOpportunityPrices(lines, catalog.map(toProductOption), {
+    creditClp,
+    importeClp,
+  });
+}
+
 /** Diagnóstico pagado → Diagnóstico realizado. Score/fit/región/producto opcionales. */
 export async function markDiagnosticoRealizado(input: {
   caseId: string;
@@ -887,7 +911,8 @@ export async function markDiagnosticoRealizado(input: {
   closingScore?: ClosingScore | null;
   dealFit?: DealFit | null;
   region?: ChileRegion | null;
-  productKeys?: string[] | null;
+  /** Líneas con precio de esta oportunidad. Si falta el monto, se cotiza. */
+  products?: { key: string; priceClp: number | null }[] | null;
   /** Segmento confirmado por el consultor (opcional). */
   segmento?: string | null;
 }): Promise<CaseRow> {
@@ -925,14 +950,8 @@ export async function markDiagnosticoRealizado(input: {
     input.dealFit && isDealFit(input.dealFit) ? input.dealFit : null;
   const region =
     input.region && isChileRegion(input.region) ? input.region : null;
-  const productKeys = Array.isArray(input.productKeys)
-    ? [
-        ...new Set(
-          input.productKeys
-            .filter((k): k is string => typeof k === "string" && !!k.trim())
-            .map((k) => k.trim())
-        ),
-      ]
+  const productLines = Array.isArray(input.products)
+    ? await pricedLinesForCase(current, input.products)
     : null;
   const segmento = normalizeSegmentCode(input.segmento);
 
@@ -943,8 +962,8 @@ export async function markDiagnosticoRealizado(input: {
   if (score) qPatch.closing_score = score;
   if (dealFit) qPatch.deal_fit = dealFit;
   if (region) qPatch.region = region;
-  if (productKeys && productKeys.length > 0) {
-    qPatch.productos = productKeys;
+  if (productLines && productLines.length > 0) {
+    qPatch.productos = productLines;
   }
   if (segmento) qPatch.segmento_confirmado = segmento;
 
@@ -976,7 +995,7 @@ export async function markDiagnosticoRealizado(input: {
       ...(score ? { closingScore: score } : {}),
       ...(dealFit ? { dealFit } : {}),
       ...(region ? { region } : {}),
-      ...(productKeys && productKeys.length ? { productKeys } : {}),
+      ...(productLines && productLines.length ? { products: productLines } : {}),
       ...(segmento
         ? {
             segmento,
@@ -1424,10 +1443,10 @@ export async function unlinkCompanyFromCase(input: {
   return updated;
 }
 
-/** Actualiza productos (keys del catálogo) sin cambiar etapa. */
+/** Actualiza productos de la oportunidad (key + precio de ese deal) sin cambiar etapa. */
 export async function setProducts(input: {
   caseId: string;
-  productKeys: string[];
+  lines: { key: string; priceClp: number | null }[];
   actor?: string;
 }): Promise<CaseRow> {
   const db = await getDb();
@@ -1438,19 +1457,13 @@ export async function setProducts(input: {
     .limit(1);
   if (!current) throw new Error("Case not found");
 
-  const productKeys = [
-    ...new Set(
-      (input.productKeys ?? [])
-        .filter((k): k is string => typeof k === "string" && !!k.trim())
-        .map((k) => k.trim())
-    ),
-  ];
+  const lines = await pricedLinesForCase(current, input.lines ?? []);
 
   const q = {
     ...((current.qualification ?? {}) as Record<string, unknown>),
   };
   delete q.producto;
-  if (productKeys.length > 0) q.productos = productKeys;
+  if (lines.length > 0) q.productos = lines;
   else delete q.productos;
 
   const [updated] = await db
@@ -1465,7 +1478,7 @@ export async function setProducts(input: {
   await appendEvent(
     updated.id,
     "products_set",
-    { productKeys },
+    { products: lines },
     input.actor ?? "ops"
   );
   return updated;

@@ -69,9 +69,11 @@ import { nextActionForCase } from "@/lib/process-effects";
 import { getPostMeetState } from "@/lib/integrations/post-meet-collect";
 import { lostReasonLabel } from "@/lib/lost-reasons";
 import {
+  diagnosticoCreditForSlug,
   formatClp,
   productKeysFromQualification,
-  sumProductPrices,
+  quoteProductLines,
+  sumQuotedPrices,
   toProductOption,
 } from "@/lib/products";
 import { listProducts } from "@/lib/products-db";
@@ -122,6 +124,7 @@ export default async function IniciativaOportunidadPage({
   const contactCompanies = c.contactId
     ? await listCompaniesForContact(c.contactId)
     : [];
+  const creditClp = diagnosticoCreditForSlug(ini?.slug);
   const currentProductKeys = productKeysFromQualification(qualification);
   const postMeet = getPostMeetState(c);
   const canGenerateProposal = Boolean(
@@ -134,7 +137,10 @@ export default async function IniciativaOportunidadPage({
   const productOptions = catalogProducts
     .filter((p) => p.active || currentProductKeys.includes(p.key))
     .map(toProductOption);
-  const productsTotal = sumProductPrices(currentProductKeys, productOptions);
+  const quotedLines = quoteProductLines(qualification, productOptions, {
+    creditClp,
+  });
+  const productsTotal = sumQuotedPrices(quotedLines);
   const isConsultoria =
     c.playbookId === PB_CONSULTORIA ||
     ini?.playbookId === PB_CONSULTORIA ||
@@ -203,17 +209,21 @@ export default async function IniciativaOportunidadPage({
     <AppShell active={shellActive}>
       <Topbar
         title={caseTitle(c)}
-        subtitle={[
-          c.contact?.name,
-          c.contact?.email,
-          currentProductKeys.length
-            ? `${currentProductKeys.length} producto${
-                currentProductKeys.length === 1 ? "" : "s"
-              } · ${formatClp(productsTotal)}`
-            : null,
-        ]
+        subtitle={[c.contact?.name, c.contact?.email]
           .filter(Boolean)
           .join(" · ")}
+        aside={
+          currentProductKeys.length ? (
+            <div className="opp-importe">
+              <span>Importe</span>
+              <strong>{formatClp(productsTotal)}</strong>
+              <em>
+                {currentProductKeys.length} producto
+                {currentProductKeys.length === 1 ? "" : "s"}
+              </em>
+            </div>
+          ) : null
+        }
         actions={
           isConsultoria ? (
             <CaseActions
@@ -409,7 +419,8 @@ export default async function IniciativaOportunidadPage({
                       currentClosingScore={currentClosingScore}
                       currentDealFit={currentDealFit}
                       currentRegion={currentRegion}
-                      currentProductKeys={currentProductKeys}
+                      currentLines={quotedLines}
+                      creditClp={creditClp}
                       productOptions={productOptions}
                       suggestedSegmento={
                         c.segmentoSugerido ??
@@ -466,9 +477,6 @@ export default async function IniciativaOportunidadPage({
               initialTab={initialTab}
               productsCount={currentProductKeys.length}
               notesCount={notes.length}
-              productsTotalLabel={
-                currentProductKeys.length ? formatClp(productsTotal) : null
-              }
               general={
                 <>
                   <div className="panel" style={{ marginBottom: "1rem" }}>
@@ -623,13 +631,16 @@ export default async function IniciativaOportunidadPage({
                   <p className="panel-kicker">Catálogo</p>
                   <h3>Productos de esta oportunidad</h3>
                   <p className="lede" style={{ marginTop: "0.35rem" }}>
-                    Buscá y agregá. Podés sumar más de uno.
+                    {creditClp > 0
+                      ? "Al agregar, el precio parte con el descuento del diagnóstico. Podés ajustarlo: solo cambia en esta oportunidad."
+                      : "Buscá y agregá. El precio se puede ajustar y solo cambia en esta oportunidad."}
                   </p>
                   <div style={{ marginTop: "0.85rem" }}>
                     <ProductEditor
                       caseId={c.id}
-                      currentProductKeys={currentProductKeys}
+                      lines={quotedLines}
                       options={productOptions}
+                      creditClp={creditClp}
                     />
                   </div>
                 </div>

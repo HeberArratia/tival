@@ -260,6 +260,41 @@ button {
   z-index: 10;
 }
 
+.topbar > div:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.opp-importe {
+  flex: none;
+  text-align: right;
+  padding-top: 0.05rem;
+}
+
+.opp-importe span {
+  display: block;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--t-muted);
+}
+
+.opp-importe strong {
+  display: block;
+  font-size: 1.35rem;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.opp-importe em {
+  display: block;
+  margin-top: 0.12rem;
+  font-style: normal;
+  font-size: 0.72rem;
+  color: var(--t-muted);
+}
+
 .topbar h1 {
   margin: 0;
   font-size: 1.2rem;
@@ -1978,6 +2013,70 @@ button.view-tab {
 
 .product-picker-selected span {
   font-size: 0.74rem;
+  color: var(--t-muted);
+}
+
+.product-picker-selected .product-picker-price-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.28rem;
+}
+
+.product-picker-selected .product-picker-amount {
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+}
+
+.product-picker-edit {
+  height: 1.6rem;
+  padding: 0 0.45rem;
+  font-size: 0.74rem;
+}
+
+.product-picker-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--t-line-strong);
+  background: var(--t-bg-elevated);
+  color: var(--t-muted);
+  font-size: 0.78rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.product-picker-icon.is-ok {
+  border-color: transparent;
+  background: var(--t-teal-deep);
+  color: #fff;
+}
+
+.product-picker-icon:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.product-picker-selected .product-picker-price {
+  width: 8.5rem;
+  max-width: 100%;
+  height: 1.9rem;
+  padding: 0 0.5rem;
+  font-size: 0.84rem;
+}
+
+.product-picker-note {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.7rem;
   color: var(--t-muted);
 }
 

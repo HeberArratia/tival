@@ -30,6 +30,7 @@ import { isClosingScore } from "@/lib/closing-scores";
 import { isDealFit } from "@/lib/deal-fits";
 import { isLostReason } from "@/lib/lost-reasons";
 import { isMemberId } from "@/lib/members-catalog";
+import { parseProductLineInputs } from "@/lib/products";
 import { retryN8nProposal } from "@/lib/integrations/n8n-proposal";
 import {
   blockWhatsappUser,
@@ -38,6 +39,23 @@ import {
 } from "@/lib/integrations/kapso-whatsapp";
 
 export const runtime = "nodejs";
+
+/** `products` (key + precio) o, si no viene, `productKeys` / `productKey`. */
+function productLinesFromBody(body: {
+  products?: unknown;
+  productKeys?: unknown;
+  productKey?: unknown;
+}) {
+  const parsed = parseProductLineInputs(body?.products);
+  if (parsed) return parsed;
+  if (Array.isArray(body?.productKeys)) {
+    return parseProductLineInputs(body.productKeys) ?? [];
+  }
+  if (typeof body?.productKey === "string" && body.productKey.trim()) {
+    return [{ key: body.productKey.trim(), priceClp: null }];
+  }
+  return null;
+}
 
 export async function POST(
   request: NextRequest,
@@ -163,13 +181,7 @@ export async function POST(
       const dealFit = isDealFit(rawFit) ? rawFit : null;
       const rawRegion = typeof body?.region === "string" ? body.region : null;
       const region = isChileRegion(rawRegion) ? rawRegion : null;
-      const productKeys = Array.isArray(body?.productKeys)
-        ? body.productKeys.filter(
-            (k: unknown): k is string => typeof k === "string" && !!k.trim()
-          )
-        : typeof body?.productKey === "string" && body.productKey.trim()
-          ? [body.productKey.trim()]
-          : null;
+      const products = productLinesFromBody(body);
       const segmento =
         typeof body?.segmento === "string" && body.segmento.trim()
           ? body.segmento.trim()
@@ -180,7 +192,7 @@ export async function POST(
         closingScore,
         dealFit,
         region,
-        productKeys,
+        products,
         segmento,
       });
       return NextResponse.json({ ok: true, case: row });
@@ -360,16 +372,9 @@ export async function POST(
     }
 
     if (action === "set_products" || action === "set_product") {
-      const productKeys = Array.isArray(body?.productKeys)
-        ? body.productKeys.filter(
-            (k: unknown): k is string => typeof k === "string" && !!k.trim()
-          )
-        : typeof body?.productKey === "string" && body.productKey.trim()
-          ? [body.productKey.trim()]
-          : [];
       const row = await setProducts({
         caseId: id,
-        productKeys,
+        lines: productLinesFromBody(body) ?? [],
         actor,
       });
       return NextResponse.json({ ok: true, case: row });

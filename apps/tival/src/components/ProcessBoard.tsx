@@ -26,10 +26,11 @@ import {
 import { memberById } from "@/lib/members-catalog";
 import { recipeForStageKey } from "@/lib/process-effects";
 import {
+  DIAGNOSTICO_CREDIT_CLP,
   formatClp,
-  productKeysFromQualification,
   productNamesForKeys,
-  sumProductPrices,
+  quoteProductLines,
+  sumQuotedPrices,
   type ProductOption,
 } from "@/lib/products";
 function columnForCase(stages: PlaybookStage[], c: CaseWithIdentity): string {
@@ -54,6 +55,7 @@ export function ProcessBoard({
   /** Canvas ops: sin chips de recipe por columna */
   quiet = false,
   productOptions = [],
+  creditClp = DIAGNOSTICO_CREDIT_CLP,
   paymentRequestByCase,
 }: {
   stages: PlaybookStage[];
@@ -62,9 +64,18 @@ export function ProcessBoard({
   showInitiative?: boolean;
   quiet?: boolean;
   productOptions?: ProductOption[];
+  /** Crédito por producto. El tablero de diagnóstico lo trae puesto. */
+  creditClp?: number;
   /** Solo se pinta en la columna Lead entrante. */
   paymentRequestByCase?: ReadonlyMap<string, PaymentRequestStatus>;
 }) {
+  function quotedFor(c: CaseWithIdentity) {
+    return quoteProductLines(
+      c.qualification as Record<string, unknown> | null,
+      productOptions,
+      { creditClp }
+    );
+  }
   const byStage = new Map<string, CaseWithIdentity[]>();
   for (const s of stages) byStage.set(s.id, []);
 
@@ -93,12 +104,7 @@ export function ProcessBoard({
           const recipe = locked ? null : recipeForStageKey(s.key);
           const columnTotal = locked
             ? 0
-            : cards.reduce((acc, c) => {
-                const keys = productKeysFromQualification(
-                  c.qualification as Record<string, unknown> | null
-                );
-                return acc + sumProductPrices(keys, productOptions);
-              }, 0);
+            : cards.reduce((acc, c) => acc + sumQuotedPrices(quotedFor(c)), 0);
           const colClass = [
             "board-col",
             locked ? "is-locked" : "",
@@ -180,11 +186,12 @@ export function ProcessBoard({
                     // Solo “sin pago”: el resto de cierres se ven normales.
                     const muted =
                       stageKey === "perdido" && c.lostReason === "no_pago";
-                    const keys = productKeysFromQualification(
-                      c.qualification as Record<string, unknown> | null
+                    const lines = quotedFor(c);
+                    const oppTotal = sumQuotedPrices(lines);
+                    const names = productNamesForKeys(
+                      lines.map((l) => l.key),
+                      productOptions
                     );
-                    const oppTotal = sumProductPrices(keys, productOptions);
-                    const names = productNamesForKeys(keys, productOptions);
                     const consultant = memberById(c.assignedConsultantId);
                     const showConsultantSlot =
                       c.paymentStatus === "paid" &&
@@ -232,7 +239,7 @@ export function ProcessBoard({
                             })}
                           </div>
                         ) : null}
-                        {keys.length > 0 ? (
+                        {lines.length > 0 ? (
                           <div className="board-card-products">
                             <strong>{formatClp(oppTotal)}</strong>
                             <span>

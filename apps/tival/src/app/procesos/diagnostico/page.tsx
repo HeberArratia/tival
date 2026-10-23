@@ -51,9 +51,10 @@ import {
 } from "@/lib/members-catalog";
 import { membersWithRole } from "@/lib/members";
 import {
+  DIAGNOSTICO_CREDIT_CLP,
   formatClp,
-  productKeysFromQualification,
-  sumProductPrices,
+  quoteProductLines,
+  sumQuotedPrices,
   toProductOption,
   type ProductOption,
 } from "@/lib/products";
@@ -79,9 +80,11 @@ function regionFromCase(c: CaseWithIdentity): string | null {
   return typeof raw === "string" ? raw : null;
 }
 
-function productKeysFromCase(c: CaseWithIdentity): string[] {
-  return productKeysFromQualification(
-    c.qualification as Record<string, unknown> | null
+function quotedLinesForCase(c: CaseWithIdentity, options: ProductOption[]) {
+  return quoteProductLines(
+    c.qualification as Record<string, unknown> | null,
+    options,
+    { creditClp: DIAGNOSTICO_CREDIT_CLP }
   );
 }
 
@@ -123,9 +126,9 @@ function HandoffCaseRow({
 }) {
   const segInfo = caseSegmentInfo(c);
   const consultant = memberById(c.assignedConsultantId);
-  const keys = productKeysFromCase(c);
-  const productsHint = keys.length
-    ? ` · ${keys.length} prod · ${formatClp(sumProductPrices(keys, productOptions))}`
+  const lines = quotedLinesForCase(c, productOptions);
+  const productsHint = lines.length
+    ? ` · ${lines.length} prod · ${formatClp(sumQuotedPrices(lines))}`
     : "";
 
   return (
@@ -244,7 +247,8 @@ function HandoffCaseRow({
             currentClosingScore={closingScoreFromCase(c)}
             currentDealFit={dealFitFromCase(c)}
             currentRegion={regionFromCase(c)}
-            currentProductKeys={productKeysFromCase(c)}
+            currentLines={quotedLinesForCase(c, productOptions)}
+            creditClp={DIAGNOSTICO_CREDIT_CLP}
             productOptions={productOptions}
             suggestedSegmento={
               c.segmentoSugerido ??
@@ -689,13 +693,9 @@ export default async function DiagnosticoInnovacionCanvasPage({
                             {c.contact?.name}
                             {c.contact?.email ? ` · ${c.contact.email}` : ""}
                             {(() => {
-                              const keys = productKeysFromCase(c);
-                              if (!keys.length) return null;
-                              const total = sumProductPrices(
-                                keys,
-                                productOptions
-                              );
-                              return ` · ${keys.length} prod · ${formatClp(total)}`;
+                              const lines = quotedLinesForCase(c, productOptions);
+                              if (!lines.length) return null;
+                              return ` · ${lines.length} prod · ${formatClp(sumQuotedPrices(lines))}`;
                             })()}
                           </p>
                           <p className="row-meta">

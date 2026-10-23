@@ -5,38 +5,43 @@ import { useEffect, useRef, useState } from "react";
 import { ProductSelect } from "@/components/ProductSelect";
 import {
   formatClp,
-  sumProductPrices,
+  sumQuotedPrices,
+  type OpportunityProductLine,
   type ProductOption,
 } from "@/lib/products";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
-function sameKeys(a: string[], b: string[]) {
+function sameLines(a: OpportunityProductLine[], b: OpportunityProductLine[]) {
   if (a.length !== b.length) return false;
-  const sa = [...a].sort();
-  const sb = [...b].sort();
-  return sa.every((k, i) => k === sb[i]);
+  return a.every(
+    (line, i) => line.key === b[i]?.key && line.priceClp === b[i]?.priceClp
+  );
 }
 
-/** Edita productos (multi) — buscar, agregar, quitar. */
+/** Edita productos de la oportunidad — buscar, agregar, quitar, ajustar precio. */
 export function ProductEditor({
   caseId,
-  currentProductKeys,
+  lines: linesProp,
   options,
+  creditClp = 0,
 }: {
   caseId: string;
-  currentProductKeys?: string[];
+  lines?: OpportunityProductLine[];
   options: ProductOption[];
+  creditClp?: number;
 }) {
   const router = useRouter();
-  const initial = currentProductKeys ?? [];
-  const [keys, setKeys] = useState<string[]>(initial);
+  const initial = linesProp ?? [];
+  const [lines, setLines] = useState<OpportunityProductLine[]>(initial);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const initialKey = initial.join("|");
+  const initialKey = initial
+    .map((l) => `${l.key}:${l.priceClp ?? ""}`)
+    .join("|");
 
   useEffect(() => {
-    setKeys(initial);
+    setLines(initial);
     setSaveState("idle");
   }, [initialKey]);
 
@@ -46,9 +51,9 @@ export function ProductEditor({
     };
   }, []);
 
-  async function persist(next: string[]) {
-    const prev = keys;
-    setKeys(next);
+  async function persist(next: OpportunityProductLine[]) {
+    const prev = lines;
+    setLines(next);
     setSaveState("saving");
     if (savedTimer.current) clearTimeout(savedTimer.current);
 
@@ -58,13 +63,13 @@ export function ProductEditor({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "set_products",
-          productKeys: next,
+          products: next,
         }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         console.error("[set_products]", data);
-        setKeys(prev);
+        setLines(prev);
         setSaveState("error");
         return;
       }
@@ -73,17 +78,17 @@ export function ProductEditor({
       savedTimer.current = setTimeout(() => setSaveState("idle"), 2200);
     } catch (err) {
       console.error("[set_products]", err);
-      setKeys(prev);
+      setLines(prev);
       setSaveState("error");
     }
   }
 
-  const total = sumProductPrices(keys, options);
+  const total = sumQuotedPrices(lines);
   const statusText =
     saveState === "saving"
       ? "Guardando…"
       : saveState === "saved"
-        ? keys.length
+        ? lines.length
           ? `Guardado · ${formatClp(total)}`
           : "Guardado · sin productos"
         : saveState === "error"
@@ -93,10 +98,11 @@ export function ProductEditor({
   return (
     <div className="region-editor">
       <ProductSelect
-        value={keys}
+        value={lines}
         options={options}
+        creditClp={creditClp}
         onChange={(next) => {
-          if (sameKeys(next, keys) || saveState === "saving") return;
+          if (sameLines(next, lines) || saveState === "saving") return;
           void persist(next);
         }}
         disabled={saveState === "saving"}
