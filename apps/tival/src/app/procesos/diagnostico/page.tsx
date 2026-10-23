@@ -31,6 +31,7 @@ import {
   MarkWonButton,
 } from "@/components/CaseActions";
 import { MemberAvatar } from "@/components/MemberAvatar";
+import { OpportunityFilterBar } from "@/components/OpportunityFilterBar";
 import { ProcessBoard } from "@/components/ProcessBoard";
 import { getSessionUser } from "@/lib/auth/session";
 import {
@@ -59,7 +60,12 @@ import {
   type ProductOption,
 } from "@/lib/products";
 import { listProducts } from "@/lib/products-db";
-import type { SegmentId } from "@/lib/segments";
+import {
+  caseMatchesFilters,
+  diagnosticoHref,
+  parseOpportunityFilters,
+  type OpportunityFilterState,
+} from "@/lib/opportunity-filters";
 import { segmentsByIds } from "@/lib/segments";
 import { isTerminalStageKey } from "@/lib/terminal-stages";
 
@@ -97,14 +103,6 @@ function stageForCase(
     if (byId) return byId;
   }
   return stages.find((s) => s.key === "lead") ?? stages[0] ?? null;
-}
-
-function viewHref(view: ViewId, segment: SegmentId | null) {
-  const q = new URLSearchParams();
-  if (view !== "tablero") q.set("view", view);
-  if (segment) q.set("segment", segment);
-  const s = q.toString();
-  return s ? `/procesos/diagnostico?${s}` : "/procesos/diagnostico";
 }
 
 function HandoffCaseRow({
@@ -301,15 +299,13 @@ function HandoffCaseRow({
 export default async function DiagnosticoInnovacionCanvasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ segment?: string; view?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { segment: segmentParam, view: viewParam } = await searchParams;
-  const segmentFilter =
-    segmentParam === "s1" || segmentParam === "s2" || segmentParam === "s3"
-      ? (segmentParam as SegmentId)
-      : null;
+  const params = await searchParams;
+  const viewParam = params.view;
+  const viewValue = Array.isArray(viewParam) ? viewParam[0] : viewParam;
   const view: ViewId =
-    viewParam === "listado" || viewParam === "handoff" ? viewParam : "tablero";
+    viewValue === "listado" || viewValue === "handoff" ? viewValue : "tablero";
 
   const initiative =
     initiativeById(INI_DIAGNOSTICO) ??
@@ -351,16 +347,29 @@ export default async function DiagnosticoInnovacionCanvasPage({
     return false;
   });
 
-  const filtered = segmentFilter
-    ? opportunities.filter((c) => segmentForCase(c)?.id === segmentFilter)
-    : opportunities;
+  const parsedFilters = parseOpportunityFilters(params);
+  const filters: OpportunityFilterState = targets.some(
+    (segment) => segment.id === parsedFilters.segment
+  )
+    ? parsedFilters
+    : { ...parsedFilters, segment: null };
+  const pool = opportunities.filter((c) =>
+    caseMatchesFilters(
+      c,
+      { ...filters, segment: null },
+      segmentForCase(c)?.id ?? null
+    )
+  );
+  const filtered = filters.segment
+    ? pool.filter((c) => segmentForCase(c)?.id === filters.segment)
+    : pool;
 
   const productOptions = (
     await listProducts({ activeOnly: false }).catch(() => [])
   ).map(toProductOption);
 
   const stages = meta?.stages ?? [];
-  const leadCaseIds = opportunities
+  const leadCaseIds = filtered
     .filter((c) => stageForCase(stages, c)?.key === "lead")
     .map((c) => c.id);
   const paymentRequestByCase = await paymentRequestStatusByCaseIds(
@@ -370,8 +379,23 @@ export default async function DiagnosticoInnovacionCanvasPage({
     id: m.id,
     name: m.name,
   }));
+  const consultantOptions = [...consultants];
+  const knownConsultants = new Set(consultantOptions.map((consultant) => consultant.id));
+  for (const opportunity of opportunities) {
+    const id = opportunity.assignedConsultantId;
+    if (!id || knownConsultants.has(id)) continue;
+    knownConsultants.add(id);
+    consultantOptions.push({
+      id,
+      name: memberById(id)?.name ?? "Sin nombre",
+    });
+  }
+  consultantOptions.sort((a, b) => a.name.localeCompare(b.name, "es"));
+  const productChoices = [...productOptions].sort((a, b) =>
+    a.name.localeCompare(b.name, "es")
+  );
 
-  const needsHumanAll = opportunities.filter((c) => {
+  const needsHuman = filtered.filter((c) => {
     const st = stageForCase(stages, c);
     if (!st || isTerminalStageKey(st.key)) return false;
     if (["cancelled", "no_show", "rescheduled_away"].includes(c.status))
@@ -384,9 +408,6 @@ export default async function DiagnosticoInnovacionCanvasPage({
       (c.paymentStatus !== "paid" && c.status === "open" && st.key === "lead")
     );
   });
-  const needsHuman = segmentFilter
-    ? needsHumanAll.filter((c) => segmentForCase(c)?.id === segmentFilter)
-    : needsHumanAll;
 
   /** Handoff consultor: solo asignados a él · sin cola Ops. */
   const handoffPool = isConsultorView
@@ -433,9 +454,6 @@ export default async function DiagnosticoInnovacionCanvasPage({
     ? handoffConsultor.length
     : needsHuman.length;
 
-  const countBySeg = (id: SegmentId) =>
-    opportunities.filter((c) => segmentForCase(c)?.id === id).length;
-
   const listRows = filtered;
   const subtitle =
     view === "handoff"
@@ -469,7 +487,7 @@ export default async function DiagnosticoInnovacionCanvasPage({
           <>
             <div className="view-tabs" role="tablist" aria-label="Vistas">
               <Link
-                href={viewHref("tablero", segmentFilter)}
+                href={diagnosticoHref("tablero", filters)}
                 className={`view-tab ${view === "tablero" ? "is-active" : ""}`}
                 role="tab"
                 aria-selected={view === "tablero"}
@@ -477,7 +495,7 @@ export default async function DiagnosticoInnovacionCanvasPage({
                 Tablero
               </Link>
               <Link
-                href={viewHref("listado", segmentFilter)}
+                href={diagnosticoHref("listado", filters)}
                 className={`view-tab ${view === "listado" ? "is-active" : ""}`}
                 role="tab"
                 aria-selected={view === "listado"}
@@ -486,7 +504,7 @@ export default async function DiagnosticoInnovacionCanvasPage({
                 <span className="view-tab-count">{filtered.length}</span>
               </Link>
               <Link
-                href={viewHref("handoff", segmentFilter)}
+                href={diagnosticoHref("handoff", filters)}
                 className={`view-tab ${view === "handoff" ? "is-active" : ""}`}
                 role="tab"
                 aria-selected={view === "handoff"}
@@ -500,26 +518,21 @@ export default async function DiagnosticoInnovacionCanvasPage({
               </Link>
             </div>
 
-            <div className="view-filters" aria-label="Segmentos">
-              <Link
-                href={viewHref(view, null)}
-                className={`pill ${!segmentFilter ? "pill-ok" : ""}`}
-              >
-                Todos · {opportunities.length}
-              </Link>
-              {targets.map((s) => (
-                <Link
-                  key={s.id}
-                  href={viewHref(view, s.id)}
-                  className={`pill ${
-                    segmentFilter === s.id ? "pill-segment" : ""
-                  }`}
-                  title={s.name}
-                >
-                  {s.code} · {countBySeg(s.id)}
-                </Link>
-              ))}
-            </div>
+            <OpportunityFilterBar
+              view={view}
+              filters={filters}
+              totalCount={pool.length}
+              segments={targets.map((segment) => ({
+                id: segment.id,
+                code: segment.code,
+                name: segment.name,
+                count: pool.filter(
+                  (opportunity) => segmentForCase(opportunity)?.id === segment.id
+                ).length,
+              }))}
+              consultants={consultantOptions}
+              products={productChoices}
+            />
 
             {view === "tablero" ? (
               <ProcessBoard
