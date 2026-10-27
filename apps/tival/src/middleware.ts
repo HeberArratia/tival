@@ -10,6 +10,7 @@ function isPublic(pathname: string): boolean {
   if (pathname.startsWith("/api/auth/logout")) return true;
   if (pathname.startsWith("/api/webhooks/")) return true;
   if (pathname.startsWith("/api/payments")) return true;
+  if (pathname === "/api/integrations/alfondo/noviembre-startup") return true;
   if (pathname.startsWith("/api/inngest")) return true;
   if (pathname.startsWith("/api/integrations/google-drive/callback"))
     return true;

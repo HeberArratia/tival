@@ -31,6 +31,7 @@ import { isDealFit } from "@/lib/deal-fits";
 import { isLostReason } from "@/lib/lost-reasons";
 import { isMemberId } from "@/lib/members-catalog";
 import { parseProductLineInputs } from "@/lib/products";
+import { moveVentaDirectaStage } from "@/lib/integrations/noviembre-startup";
 import { retryN8nProposal } from "@/lib/integrations/n8n-proposal";
 import {
   blockWhatsappUser,
@@ -469,6 +470,24 @@ export async function POST(
           return NextResponse.json({ ok: false, error: msg }, { status: 404 });
         }
         throw err;
+      }
+    }
+
+    if (action === "move_venta_directa") {
+      const stageKey = typeof body?.stageKey === "string" ? body.stageKey : "";
+      const reason = typeof body?.reason === "string" ? body.reason : null;
+      try {
+        const row = await moveVentaDirectaStage({
+          caseId: id,
+          stageKey,
+          reason,
+          actor,
+        });
+        return NextResponse.json({ ok: true, case: row });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "error";
+        const status = msg === "Oportunidad no encontrada." ? 404 : 400;
+        return NextResponse.json({ ok: false, error: msg }, { status });
       }
     }
 

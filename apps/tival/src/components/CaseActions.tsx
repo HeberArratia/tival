@@ -127,6 +127,7 @@ async function postAction(
     products?: OpportunityProductLine[] | null;
     consultantId?: string | null;
     segmento?: string | null;
+    stageKey?: string;
   }
 ): Promise<{
   ok: boolean;

@@ -23,6 +23,7 @@ import {
   opportunityHref,
   caseSegmentInfo,
 } from "@/lib/fake-data";
+import { readNoviembreStartup } from "@/lib/integrations/noviembre-startup";
 import { memberById } from "@/lib/members-catalog";
 import { recipeForStageKey } from "@/lib/process-effects";
 import {
@@ -54,6 +55,7 @@ export function ProcessBoard({
   showInitiative = false,
   /** Canvas ops: sin chips de recipe por columna */
   quiet = false,
+  showPaymentRequest = true,
   productOptions = [],
   creditClp = DIAGNOSTICO_CREDIT_CLP,
   paymentRequestByCase,
@@ -63,6 +65,8 @@ export function ProcessBoard({
   title?: string;
   showInitiative?: boolean;
   quiet?: boolean;
+  /** En Lead entrante de Consultoría muestra si ya se pidió el pago. */
+  showPaymentRequest?: boolean;
   productOptions?: ProductOption[];
   /** Crédito por producto. El tablero de diagnóstico lo trae puesto. */
   creditClp?: number;
@@ -193,6 +197,9 @@ export function ProcessBoard({
                       productOptions
                     );
                     const consultant = memberById(c.assignedConsultantId);
+                    const solicitud = readNoviembreStartup(
+                      c.qualification as Record<string, unknown> | null
+                    );
                     const showConsultantSlot =
                       c.paymentStatus === "paid" &&
                       stageKey !== "ganado" &&
@@ -207,10 +214,12 @@ export function ProcessBoard({
                         <div className="board-card-top">
                           <div className="board-card-main">
                             <div className="board-card-title">
-                              {caseTitle(c)}
+                              {solicitud?.contact.company || caseTitle(c)}
                             </div>
                             <div className="board-card-meta">
-                              {c.contact?.name}
+                              {solicitud
+                                ? `${solicitud.contact.full_name} · ${solicitud.fund.label}`
+                                : c.contact?.name}
                             </div>
                           </div>
                           {showConsultantSlot ? (
@@ -269,7 +278,7 @@ export function ProcessBoard({
                           {c.lostReason ? (
                             <LostReasonPill reason={c.lostReason} />
                           ) : null}
-                          {s.key === "lead" ? (
+                          {showPaymentRequest && s.key === "lead" ? (
                             <PaymentRequestPill
                               status={
                                 paymentRequestByCase?.get(c.id) ?? "none"

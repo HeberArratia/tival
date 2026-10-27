@@ -27,6 +27,7 @@ export type ShellActive =
   | "productos"
   | "integraciones"
   | "diagnostico"
+  | "noviembre-startup"
   | "docs";
 
 export function AppShell({
@@ -64,6 +65,14 @@ export function AppShell({
           >
             <span className="dot" />
             Diagnóstico
+          </Link>
+          <Link
+            href="/procesos/noviembre-startup"
+            className={active === "noviembre-startup" ? "is-active" : undefined}
+            title="Iniciativa noviembre-startup"
+          >
+            <span className="dot" />
+            noviembre-startup
           </Link>
 
           <div className="nav-label" style={{ marginTop: "1.1rem" }}>

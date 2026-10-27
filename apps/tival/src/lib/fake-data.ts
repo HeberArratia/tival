@@ -40,6 +40,7 @@ export const PB_CAPTACION = "00000000-0000-4000-8000-000000000003";
 export const PB_CAPTACION_GUIA = "00000000-0000-4000-8000-000000000003";
 export const PB_CAPTACION_WEBINAR = "00000000-0000-4000-8000-000000000005";
 export const PB_FUNDER = "00000000-0000-4000-8000-000000000004";
+export const PB_VENTA_DIRECTA = "00000000-0000-4000-8000-000000000006";
 
 export type FakePlaybookMeta = {
   id: string;
@@ -84,6 +85,7 @@ export const INI_LEY_ID = "ini-ley-id";
 export const INI_WEBINAR = "ini-webinar";
 export const INI_CONTACTO = "ini-contacto";
 export const INI_FUNDER = "ini-funder-demo";
+export const INI_NOVIEMBRE_STARTUP = "ini-noviembre-startup";
 
 
 export const FAKE_WORKSPACE: Workspace = {
@@ -260,6 +262,65 @@ export const FAKE_STAGES_CAPTACION_WEBINAR: PlaybookStage[] = [
 /** @deprecated */
 export const FAKE_STAGES_CAPTACION = FAKE_STAGES_CAPTACION_GUIA;
 
+/** Venta directa — cierre sin diagnóstico. */
+export const FAKE_STAGES_VENTA_DIRECTA: PlaybookStage[] = [
+  {
+    id: "vd-lead",
+    playbookId: PB_VENTA_DIRECTA,
+    key: "lead",
+    name: "Lead entrante",
+    description: "Llegó la solicitud. Todavía nadie la contactó.",
+    sortOrder: 1,
+    requiresPayment: false,
+    requiresHuman: false,
+    actor: "integracion",
+  },
+  {
+    id: "vd-contactado",
+    playbookId: PB_VENTA_DIRECTA,
+    key: "contactado",
+    name: "Contactado",
+    description: "Hubo conversación con la persona.",
+    sortOrder: 2,
+    requiresPayment: false,
+    requiresHuman: true,
+    actor: "humano",
+  },
+  {
+    id: "vd-propuesta",
+    playbookId: PB_VENTA_DIRECTA,
+    key: "propuesta_enviada",
+    name: "Propuesta enviada",
+    description: "Se envió la propuesta.",
+    sortOrder: 3,
+    requiresPayment: false,
+    requiresHuman: true,
+    actor: "humano",
+  },
+  {
+    id: "vd-ganado",
+    playbookId: PB_VENTA_DIRECTA,
+    key: "ganado",
+    name: "Ganado",
+    description: "Cierre ganado de esta oportunidad.",
+    sortOrder: 4,
+    requiresPayment: false,
+    requiresHuman: true,
+    actor: "humano",
+  },
+  {
+    id: "vd-perdido",
+    playbookId: PB_VENTA_DIRECTA,
+    key: "perdido",
+    name: "Perdido",
+    description: "Cierre no ganado. El motivo queda en lost_reason.",
+    sortOrder: 5,
+    requiresPayment: false,
+    requiresHuman: true,
+    actor: "humano",
+  },
+];
+
 /** Preview UI — aún no operativo. */
 export const FAKE_STAGES_FUNDER: PlaybookStage[] = [
   {
@@ -338,6 +399,16 @@ export const FAKE_PLAYBOOKS: FakePlaybookMeta[] = [
     opportunityFields: FUNDER_FIELDS,
     stages: FAKE_STAGES_FUNDER,
   },
+  {
+    id: PB_VENTA_DIRECTA,
+    slug: "venta-directa",
+    name: "Venta directa",
+    blurb:
+      "Lead entrante → contactado → propuesta enviada → ganado / perdido. Sin diagnóstico.",
+    compatibleTypes: ["convocatoria", "referido"],
+    opportunityFields: [],
+    stages: FAKE_STAGES_VENTA_DIRECTA,
+  },
 ];
 
 export const FAKE_INITIATIVES: FakeInitiative[] = [
@@ -396,6 +467,18 @@ export const FAKE_INITIATIVES: FakeInitiative[] = [
     segmentMode: "classify",
     fieldDefaults: {
       asset: "Contacto web",
+    },
+  },
+  {
+    id: INI_NOVIEMBRE_STARTUP,
+    playbookId: PB_VENTA_DIRECTA,
+    typeId: "convocatoria",
+    name: "noviembre-startup",
+    slug: "noviembre-startup",
+    blurb: "Form de admisibilidad a fondos Corfo que abren en noviembre.",
+    segmentMode: "fixed",
+    config: {
+      landingUrl: "https://alfondo.cl/noviembre-startup/postular",
     },
   },
   {
@@ -1069,6 +1152,7 @@ function base(
     createdAt: ago(48),
     updatedAt: ago(1),
     ...partial,
+    sourceSubmissionId: partial.sourceSubmissionId ?? null,
   };
 }
 

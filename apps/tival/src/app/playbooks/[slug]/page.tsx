@@ -46,7 +46,9 @@ export default async function PlaybookShowPage({
   const canvasHref =
     pb.slug === "consultoria"
       ? "/procesos/diagnostico"
-      : null;
+      : pb.slug === "venta-directa"
+        ? "/procesos/noviembre-startup"
+        : null;
 
   return (
     <AppShell active="playbooks">
@@ -57,7 +59,9 @@ export default async function PlaybookShowPage({
           <div className="topbar-actions">
             {canvasHref ? (
               <Link className="btn btn-primary" href={canvasHref}>
-                Canvas · Diagnóstico
+                {pb.slug === "venta-directa"
+                  ? "Canvas · noviembre-startup"
+                  : "Canvas · Diagnóstico"}
               </Link>
             ) : null}
             <Link className="btn" href="/playbooks">
@@ -71,8 +75,8 @@ export default async function PlaybookShowPage({
           <PlaybookPill playbookId={pb.id} />{" "}
           {pb.comingSoon ? (
             <span className="pill">coming soon</span>
-          ) : pb.slug === "consultoria" ? (
-            <span className="pill pill-ok">activo V1</span>
+          ) : pb.slug === "consultoria" || pb.slug === "venta-directa" ? (
+            <span className="pill pill-ok">activo</span>
           ) : (
             <span className="pill pill-warn">preview</span>
           )}

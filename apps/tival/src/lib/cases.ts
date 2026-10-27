@@ -160,6 +160,14 @@ export async function enrichCase(row: CaseRow): Promise<CaseWithIdentity> {
   return enriched;
 }
 
+function activePlaybookSlug(workspaceSlug: string) {
+  try {
+    return getWorkspacePack(workspaceSlug).defaultPlaybookSlug;
+  } catch {
+    return "consultoria";
+  }
+}
+
 async function getActivePlaybook(workspaceSlug = defaultWorkspaceSlug()) {
   if (isFakeDataEnabled()) {
     return {
@@ -181,7 +189,11 @@ async function getActivePlaybook(workspaceSlug = defaultWorkspaceSlug()) {
     .select()
     .from(playbooks)
     .where(
-      and(eq(playbooks.workspaceId, workspace.id), eq(playbooks.isActive, true))
+      and(
+        eq(playbooks.workspaceId, workspace.id),
+        eq(playbooks.slug, activePlaybookSlug(workspace.slug)),
+        eq(playbooks.isActive, true)
+      )
     )
     .limit(1);
   if (!playbook) throw new Error(`Active playbook not found for ${workspaceSlug}`);
@@ -215,6 +227,7 @@ async function resolvePlaybookContext(input: {
       .where(
         and(
           eq(playbooks.workspaceId, workspace.id),
+          eq(playbooks.slug, activePlaybookSlug(workspace.slug)),
           eq(playbooks.isActive, true)
         )
       )
@@ -1718,11 +1731,12 @@ export async function listCases(filters?: {
 export async function getCaseWithEvents(caseId: string) {
   if (isFakeDataEnabled()) {
     const row = FAKE_CASES.find((c) => c.id === caseId);
-    if (!row) return null;
-    return {
-      case: await enrichCase(row),
-      events: fakeEventsFor(caseId),
-    };
+    if (row) {
+      return {
+        case: await enrichCase(row),
+        events: fakeEventsFor(caseId),
+      };
+    }
   }
 
   const db = await getDb();
@@ -1740,13 +1754,57 @@ export async function getPlaybookBundle(workspaceSlug = defaultWorkspaceSlug()) 
   return getActivePlaybook(workspaceSlug);
 }
 
-/** Stages del playbook del caso (fake multi-proceso). */
+/** Todos los playbooks del workspace, con sus etapas. */
+export async function listWorkspacePlaybooks(
+  workspaceSlug = defaultWorkspaceSlug()
+) {
+  const db = await getDb();
+  const [workspace] = await db
+    .select()
+    .from(workspaces)
+    .where(eq(workspaces.slug, workspaceSlug))
+    .limit(1);
+  if (!workspace) return [];
+  const rows = await db
+    .select()
+    .from(playbooks)
+    .where(eq(playbooks.workspaceId, workspace.id))
+    .orderBy(playbooks.name);
+  const out = [];
+  for (const playbook of rows) {
+    const stages = await db
+      .select()
+      .from(playbookStages)
+      .where(eq(playbookStages.playbookId, playbook.id))
+      .orderBy(playbookStages.sortOrder);
+    out.push({ playbook, stages });
+  }
+  return out;
+}
+
+/** Stages del playbook del caso. */
 export async function getStagesForCase(caseRow: CaseRow) {
   if (isFakeDataEnabled()) {
-    return playbookMetaById(caseRow.playbookId).stages;
+    const meta = FAKE_PLAYBOOKS.find((p) => p.id === caseRow.playbookId);
+    if (meta) return meta.stages;
   }
-  const bundle = await getActivePlaybook();
-  return bundle.stages;
+  const db = await getDb();
+  return db
+    .select()
+    .from(playbookStages)
+    .where(eq(playbookStages.playbookId, caseRow.playbookId))
+    .orderBy(playbookStages.sortOrder);
+}
+
+/** Oportunidades de un playbook concreto (siempre DB, aunque la UI demo esté activa). */
+export async function listCasesForPlaybook(playbookId: string) {
+  const db = await getDb();
+  const rows = await db
+    .select()
+    .from(cases)
+    .where(eq(cases.playbookId, playbookId))
+    .orderBy(desc(cases.updatedAt));
+  return enrichCases(rows);
 }
 
 export async function listFakePlaybooks() {

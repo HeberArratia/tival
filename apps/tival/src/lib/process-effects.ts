@@ -721,6 +721,16 @@ const EVENT_LABELS: Record<
     kind: "trigger",
     result: "ok",
   },
+  noviembre_startup_received: {
+    title: "Trigger Alfondo · solicitud noviembre-startup",
+    kind: "trigger",
+    result: "ok",
+  },
+  venta_directa_stage: {
+    title: "Humano · etapa de venta directa",
+    kind: "humano",
+    result: "ok",
+  },
   nurture_enrolled: {
     title: "Efecto · enroll nurture",
     kind: "efecto",

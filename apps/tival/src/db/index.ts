@@ -10,7 +10,7 @@ export type Db =
   | ReturnType<typeof drizzlePglite<typeof schema>>;
 
 /** Subir cuando se agreguen tablas/columnas en ensure* (hot-reload seguro). */
-const SCHEMA_ENSURE_VERSION = 2;
+const SCHEMA_ENSURE_VERSION = 3;
 
 const globalForDb = globalThis as unknown as {
   pgClient?: ReturnType<typeof postgres>;
@@ -184,6 +184,7 @@ async function ensurePgliteSchema(client: PGlite) {
       qualification jsonb,
       landing_source text,
       qualification_log_id text,
+      source_submission_id text,
       segmento text,
       segmento_sugerido text,
       payment_method payment_method,
@@ -201,6 +202,9 @@ async function ensurePgliteSchema(client: PGlite) {
     );
     CREATE UNIQUE INDEX IF NOT EXISTS cases_workspace_calendly_event_uuid
       ON cases(workspace_id, calendly_event_uuid);
+    ALTER TABLE cases ADD COLUMN IF NOT EXISTS source_submission_id text;
+    CREATE UNIQUE INDEX IF NOT EXISTS cases_workspace_source_submission
+      ON cases(workspace_id, source_submission_id);
     CREATE UNIQUE INDEX IF NOT EXISTS cases_mp_payment_id ON cases(mp_payment_id);
     CREATE INDEX IF NOT EXISTS cases_workspace_status ON cases(workspace_id, status);
     CREATE INDEX IF NOT EXISTS cases_scheduled_at ON cases(scheduled_at);
@@ -275,6 +279,9 @@ async function ensurePostgresColumns(sql: ReturnType<typeof postgres>) {
     ALTER TABLE cases ADD COLUMN IF NOT EXISTS google_calendar_event_id text;
     ALTER TABLE cases ADD COLUMN IF NOT EXISTS lost_reason text;
     ALTER TABLE cases ADD COLUMN IF NOT EXISTS assigned_consultant_id text;
+    ALTER TABLE cases ADD COLUMN IF NOT EXISTS source_submission_id text;
+    CREATE UNIQUE INDEX IF NOT EXISTS cases_workspace_source_submission
+      ON cases(workspace_id, source_submission_id);
 
     CREATE TABLE IF NOT EXISTS case_notes (
       id uuid PRIMARY KEY,

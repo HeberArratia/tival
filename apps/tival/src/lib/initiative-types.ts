@@ -8,9 +8,11 @@ export type InitiativeTypeId =
   | "guia"
   | "form"
   | "webinar"
-  | "programa";
+  | "programa"
+  | "convocatoria"
+  | "referido";
 
-export type InitiativeEntry = "calendly" | "form" | "registro_evento";
+export type InitiativeEntry = "calendly" | "form" | "registro_evento" | "manual";
 
 export type InitiativeTypeDef = {
   id: InitiativeTypeId;
@@ -76,6 +78,28 @@ export const INITIATIVE_TYPES: InitiativeTypeDef[] = [
     configFields: [
       { key: "landingUrl", label: "Landing", placeholder: "https://…" },
     ],
+  },
+  {
+    id: "convocatoria",
+    name: "Convocatoria",
+    blurb: "Form de admisibilidad a un fondo abierto. Playbook Venta directa.",
+    entry: "form",
+    defaultPlaybookSlug: "venta-directa",
+    configFields: [
+      {
+        key: "landingUrl",
+        label: "URL del form",
+        placeholder: "https://alfondo.cl/noviembre-startup/postular",
+      },
+    ],
+  },
+  {
+    id: "referido",
+    name: "Referido",
+    blurb: "Llega por alguien del equipo, sin diagnóstico. Playbook Venta directa.",
+    entry: "manual",
+    defaultPlaybookSlug: "venta-directa",
+    configFields: [],
   },
 ];
 

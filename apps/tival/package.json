@@ -15,6 +15,7 @@
     "db:seed": "tsx scripts/seed.ts",
     "fake:calendly": "tsx scripts/fake-calendly-webhook.ts",
     "fake:pago-mp": "tsx scripts/fake-pago-mp.ts",
+    "fake:noviembre-startup": "tsx scripts/fake-noviembre-startup.ts",
     "enrich:diagnostico": "tsx scripts/enrich-diagnostico.ts",
     "backfill:diagnostico-calendly": "tsx scripts/backfill-diagnostico-from-calendly.ts",
     "inngest:dev": "npx --ignore-scripts=false inngest-cli@latest dev -u http://localhost:3000/api/inngest",

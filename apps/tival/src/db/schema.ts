@@ -330,6 +330,8 @@ export const cases = pgTable(
     qualification: jsonb("qualification").$type<Record<string, unknown>>(),
     landingSource: text("landing_source"),
     qualificationLogId: text("qualification_log_id"),
+    /** Idempotencia de un POST externo (submission_id de Alfondo). */
+    sourceSubmissionId: text("source_submission_id"),
     /** Segmento confirmado por el consultor (S1 | S2 | S2S3 | S3). */
     segmento: text("segmento"),
     /** Segmento sugerido por el wizard Alfondo (pre-reunión). */
@@ -363,6 +365,10 @@ export const cases = pgTable(
     uniqueIndex("cases_workspace_calendly_event_uuid").on(
       t.workspaceId,
       t.calendlyEventUuid
+    ),
+    uniqueIndex("cases_workspace_source_submission").on(
+      t.workspaceId,
+      t.sourceSubmissionId
     ),
     uniqueIndex("cases_mp_payment_id").on(t.mpPaymentId),
     index("cases_workspace_status").on(t.workspaceId, t.status),

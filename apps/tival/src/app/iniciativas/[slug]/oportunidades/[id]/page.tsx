@@ -38,6 +38,8 @@ import {
 import { ClosingScoreEditor } from "@/components/ClosingScoreEditor";
 import { DealFitEditor } from "@/components/DealFitEditor";
 import { DiagnosticoEnrichmentPanel } from "@/components/DiagnosticoAnswers";
+import { NoviembreStartupSolicitudPanel } from "@/components/NoviembreStartupSolicitud";
+import { VentaDirectaActions } from "@/components/VentaDirectaActions";
 import {
   OpportunityExtras,
   OpportunityFieldValues,
@@ -141,16 +143,12 @@ export default async function IniciativaOportunidadPage({
     creditClp,
   });
   const productsTotal = sumQuotedPrices(quotedLines);
+  const isVentaDirecta = stages.some((stage) => stage.key === "contactado");
   const isConsultoria =
-    c.playbookId === PB_CONSULTORIA ||
-    ini?.playbookId === PB_CONSULTORIA ||
-    currentStage?.key === "lead" ||
-    currentStage?.key === "pagado" ||
-    currentStage?.key === "realizado" ||
-    currentStage?.key === "propuesta_enviada" ||
-    currentStage?.key === "seguimiento" ||
-    currentStage?.key === "ganado" ||
-    currentStage?.key === "perdido";
+    !isVentaDirecta &&
+    (c.playbookId === PB_CONSULTORIA ||
+      ini?.playbookId === PB_CONSULTORIA ||
+      stages.some((stage) => stage.key === "pagado"));
   const consultants = (await membersWithRole("consultor")).map((m) => ({
     id: m.id,
     name: m.name,
@@ -175,7 +173,39 @@ export default async function IniciativaOportunidadPage({
   })
     ? buildTivalReagendaUrl(c.id)
     : null;
-  const next = nextActionForCase({
+  const ventaDirectaNext =
+    currentStage?.key === "ganado"
+      ? {
+          title: "Ganado",
+          body: "Etapa terminal. Trato cerrado.",
+          tone: "wait" as const,
+        }
+      : currentStage?.key === "perdido"
+        ? {
+            title: "Perdido",
+            body: "Etapa terminal. El motivo queda en la ficha.",
+            tone: "wait" as const,
+          }
+        : currentStage?.key === "propuesta_enviada"
+          ? {
+              title: "Cerrar la propuesta",
+              body: "Marcá ganado si compró, o perdido si no sigue.",
+              tone: "ops" as const,
+            }
+          : currentStage?.key === "contactado"
+            ? {
+                title: "Enviar la propuesta",
+                body: "Cuando salga, pasá la oportunidad a Propuesta enviada.",
+                tone: "ops" as const,
+              }
+            : {
+                title: "Contactar",
+                body: "La solicitud ya está en Lead entrante. Cuando haya conversación, pasala a Contactado.",
+                tone: "ops" as const,
+              };
+  const next = isVentaDirecta
+    ? ventaDirectaNext
+    : nextActionForCase({
     status: c.status,
     paymentStatus: c.paymentStatus,
     stageKey: currentStage?.key,
@@ -187,16 +217,22 @@ export default async function IniciativaOportunidadPage({
     awaitingRescheduleUntil: awaiting?.until ?? null,
   });
   const shellActive =
-    ini?.slug === "diagnostico" ? "diagnostico" : "iniciativas";
+    ini?.slug === "diagnostico"
+      ? "diagnostico"
+      : ini?.slug === "noviembre-startup"
+        ? "noviembre-startup"
+        : "iniciativas";
   const contactHref = c.contactId
     ? `/contactos/${c.contactId}`
     : "/contactos";
   const iniHref =
     ini?.slug === "diagnostico"
       ? "/procesos/diagnostico"
-      : ini
-        ? `/iniciativas/${ini.slug}`
-        : "/iniciativas";
+      : ini?.slug === "noviembre-startup"
+        ? "/procesos/noviembre-startup"
+        : ini
+          ? `/iniciativas/${ini.slug}`
+          : "/iniciativas";
   const notes = await listCaseNotes(c.id);
   const initialTab =
     tabParam === "productos" ||
@@ -225,7 +261,13 @@ export default async function IniciativaOportunidadPage({
           ) : null
         }
         actions={
-          isConsultoria ? (
+          isVentaDirecta ? (
+            <VentaDirectaActions
+              caseId={c.id}
+              status={c.status}
+              stageKey={currentStage?.key}
+            />
+          ) : isConsultoria ? (
             <CaseActions
               caseId={c.id}
               status={c.status}
@@ -269,7 +311,7 @@ export default async function IniciativaOportunidadPage({
               esperando reagenda
             </span>
           ) : null}{" "}
-          {c.paymentStatus !== "paid" && c.status === "open" ? (
+          {!isVentaDirecta && c.paymentStatus !== "paid" && c.status === "open" ? (
             <span className="pill pill-warn">sin pago</span>
           ) : null}{" "}
           {c.paymentStatus === "paid" &&
@@ -362,7 +404,15 @@ export default async function IniciativaOportunidadPage({
           <NextActionPanel
             hint={next}
             actions={
-              isConsultoria &&
+              isVentaDirecta &&
+              currentStage?.key !== "perdido" &&
+              currentStage?.key !== "ganado" ? (
+                <VentaDirectaActions
+                  caseId={c.id}
+                  status={c.status}
+                  stageKey={currentStage?.key}
+                />
+              ) : isConsultoria &&
               currentStage?.key !== "perdido" &&
               currentStage?.key !== "ganado" &&
               c.status !== "no_show" ? (
@@ -497,6 +547,11 @@ export default async function IniciativaOportunidadPage({
                     </div>
                   </div>
 
+                  {isVentaDirecta ? (
+                    <NoviembreStartupSolicitudPanel qualification={qualification} />
+                  ) : null}
+
+                  {isVentaDirecta ? null : (
                   <div className="panel" style={{ marginBottom: "1rem" }}>
                     <p className="panel-kicker">Ficha</p>
                     <h3>Datos de esta oportunidad</h3>
@@ -552,6 +607,7 @@ export default async function IniciativaOportunidadPage({
                       </div>
                     ) : null}
                   </div>
+                  )}
 
                   <DiagnosticoEnrichmentPanel
                     qualification={qualification}

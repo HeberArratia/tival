@@ -19,6 +19,7 @@ import {
 import { seedWorkspaceUsers } from "../src/lib/auth/seed";
 import { SEED_DEFAULT_PASSWORD } from "../src/lib/auth/seed-users";
 import { seedProductsIfEmpty } from "../src/lib/products-db";
+import { ensureVentaDirectaPlaybook } from "../src/lib/integrations/noviembre-startup";
 import { ALFONDO_CONSULTORIA_STAGES } from "../src/workspaces/alfondo/playbook-consultoria";
 
 const STAGES = ALFONDO_CONSULTORIA_STAGES;
@@ -233,8 +234,13 @@ async function main() {
       .where(eq(cases.assignedConsultantId, from));
   }
 
+  const venta = await ensureVentaDirectaPlaybook();
   console.log(
-    "Seed OK — workspace Alfondo / playbook Consultoría / usuarios / Calendly + Google / Productos"
+    `Playbook Venta directa: ${venta.playbookId} · ${venta.stages.length} etapas`
+  );
+
+  console.log(
+    "Seed OK — workspace Alfondo / playbook Consultoría / Venta directa / usuarios / Calendly + Google / Productos"
   );
   process.exit(0);
 }

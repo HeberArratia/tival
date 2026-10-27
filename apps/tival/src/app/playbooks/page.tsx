@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { AppShell, PlaybookPill, Topbar } from "@/components/AppShell";
-import { getPlaybookBundle, listFakePlaybooks } from "@/lib/cases";
+import { getPlaybookBundle, listFakePlaybooks, listWorkspacePlaybooks } from "@/lib/cases";
 import {
   initiativesForPlaybook,
   isFakeDataEnabled,
+  playbookBySlug,
 } from "@/lib/fake-data";
 import { FLOW_LINE } from "@/lib/glossary";
 import { getWorkspacePack } from "@/lib/workspace/registry";
@@ -17,23 +18,38 @@ export default async function PlaybooksIndexPage() {
   const fakePlaybooks = fakeOn ? await listFakePlaybooks() : [];
   const bundle = await getPlaybookBundle().catch(() => null);
 
+  const dbPlaybooks = fakeOn ? [] : await listWorkspacePlaybooks().catch(() => []);
   const rows =
     fakePlaybooks.length > 0
       ? fakePlaybooks
-      : bundle
-        ? [
-            {
-              id: bundle.playbook.id,
-              slug: bundle.playbook.slug,
-              name: bundle.playbook.name,
-              blurb: "Playbook activo del workspace.",
-              compatibleTypes: ["agenda"],
-              opportunityFields: [],
-              stages: bundle.stages,
+      : dbPlaybooks.length > 0
+        ? dbPlaybooks.map(({ playbook, stages }) => {
+            const meta = playbookBySlug(playbook.slug);
+            return {
+              id: playbook.id,
+              slug: playbook.slug,
+              name: playbook.name,
+              blurb: meta?.blurb ?? "Playbook del workspace.",
+              compatibleTypes: meta?.compatibleTypes ?? [],
+              opportunityFields: meta?.opportunityFields ?? [],
+              stages,
               comingSoon: false as boolean | undefined,
-            },
-          ]
-        : [];
+            };
+          })
+        : bundle
+          ? [
+              {
+                id: bundle.playbook.id,
+                slug: bundle.playbook.slug,
+                name: bundle.playbook.name,
+                blurb: "Playbook activo del workspace.",
+                compatibleTypes: ["agenda"] as string[],
+                opportunityFields: [],
+                stages: bundle.stages,
+                comingSoon: false as boolean | undefined,
+              },
+            ]
+          : [];
 
   return (
     <AppShell active="playbooks">
@@ -68,8 +84,8 @@ export default async function PlaybooksIndexPage() {
                       <PlaybookPill playbookId={pb.id} />
                       {pb.comingSoon ? (
                         <span className="pill">coming soon</span>
-                      ) : pb.slug === "consultoria" ? (
-                        <span className="pill pill-ok">activo V1</span>
+                      ) : pb.slug === "consultoria" || pb.slug === "venta-directa" ? (
+                        <span className="pill pill-ok">activo</span>
                       ) : (
                         <span className="pill pill-warn">preview</span>
                       )}

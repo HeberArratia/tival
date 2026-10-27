@@ -141,6 +141,7 @@ export const alfondoPack: WorkspacePack = {
     ],
   },
   landingAliases: [
+    { match: /noviembre-startup/, initiativeSlug: "noviembre-startup" },
     { match: /diagnostico|diag/, initiativeSlug: "diagnostico" },
     { match: /ley|guia/, initiativeSlug: "guia-ley-id" },
     { match: /webinar/, initiativeSlug: "webinar-start-2026" },
