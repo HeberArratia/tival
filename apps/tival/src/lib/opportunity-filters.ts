@@ -163,6 +163,12 @@ export function meetingDatePresets(now = new Date()): MeetingDatePreset[] {
       hasta: addDays(weekStart, 6),
     },
     {
+      id: "semana-anterior",
+      label: "Semana anterior",
+      desde: addDays(weekStart, -7),
+      hasta: addDays(weekStart, -1),
+    },
+    {
       id: "mes",
       label: "Este mes",
       desde: ymd(today.year, today.month, 1),
