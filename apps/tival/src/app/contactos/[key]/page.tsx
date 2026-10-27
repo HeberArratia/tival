@@ -8,6 +8,7 @@ import {
   StatusPill,
   Topbar,
 } from "@/components/AppShell";
+import { CanvasLink } from "@/components/CanvasLink";
 import { getDirectoryContact } from "@/lib/contacts";
 import {
   caseSegmentInfo,
@@ -137,9 +138,9 @@ export default async function ContactoDetailPage({
                       </p>
                     </div>
                     <div style={{ display: "flex", gap: "0.4rem", flexShrink: 0 }}>
-                      <Link className="btn btn-ghost" href={iniHref}>
+                      <CanvasLink className="btn btn-ghost" href={iniHref}>
                         iniciativa
-                      </Link>
+                      </CanvasLink>
                       <Link className="btn" href={opportunityHref(c)}>
                         oportunidad
                       </Link>

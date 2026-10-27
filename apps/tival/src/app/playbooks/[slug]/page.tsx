@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { AppShell, PlaybookPill, Topbar } from "@/components/AppShell";
+import { CanvasLink } from "@/components/CanvasLink";
 import { OpportunityFieldsSchema } from "@/components/OpportunityFields";
 import { PlaybookRolesPanel, StageRail } from "@/components/ProcessUI";
 import { getPlaybookBundle, listFakePlaybooks } from "@/lib/cases";
@@ -58,11 +59,11 @@ export default async function PlaybookShowPage({
         actions={
           <div className="topbar-actions">
             {canvasHref ? (
-              <Link className="btn btn-primary" href={canvasHref}>
+              <CanvasLink className="btn btn-primary" href={canvasHref}>
                 {pb.slug === "venta-directa"
                   ? "Canvas · noviembre-startup"
                   : "Canvas · Diagnóstico"}
-              </Link>
+              </CanvasLink>
             ) : null}
             <Link className="btn" href="/playbooks">
               ← Playbooks

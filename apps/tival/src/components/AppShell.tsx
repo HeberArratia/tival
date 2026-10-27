@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
+import { CanvasLink } from "@/components/CanvasLink";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { SidebarUser } from "@/components/SidebarUser";
 import {
@@ -41,13 +42,13 @@ export function AppShell({
   return (
     <div className="shell">
       <aside className="sidebar">
-        <Link href="/procesos/diagnostico" className="brand">
+        <CanvasLink href="/procesos/diagnostico" className="brand">
           <BrandMark />
           <div>
             <strong>tival</strong>
             <small>operar el proceso</small>
           </div>
-        </Link>
+        </CanvasLink>
 
         <div className="tenant">
           <label>Workspace</label>
@@ -58,14 +59,14 @@ export function AppShell({
 
         <nav className="nav">
           <div className="nav-label">Iniciativas</div>
-          <Link
+          <CanvasLink
             href="/procesos/diagnostico"
             className={active === "diagnostico" ? "is-active" : undefined}
             title="Iniciativa Diagnóstico"
           >
             <span className="dot" />
             Diagnóstico
-          </Link>
+          </CanvasLink>
           <Link
             href="/procesos/noviembre-startup"
             className={active === "noviembre-startup" ? "is-active" : undefined}

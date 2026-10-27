@@ -21,6 +21,7 @@ import {
   closingScoreFromQualification,
   dealFitFromQualification,
 } from "@/components/AppShell";
+import { RememberCanvasHref } from "@/components/CanvasLink";
 import {
   AssignConsultantButton,
   ConfirmMpButton,
@@ -466,6 +467,7 @@ export default async function DiagnosticoInnovacionCanvasPage({
 
   return (
     <AppShell active="diagnostico">
+      <RememberCanvasHref href={diagnosticoHref(view, filters)} />
       <Topbar
         title="Diagnóstico"
         subtitle={subtitle}

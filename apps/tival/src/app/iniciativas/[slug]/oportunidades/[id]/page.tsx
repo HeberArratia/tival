@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import {
   AppShell,
@@ -9,6 +8,7 @@ import {
   Topbar,
   dealFitFromQualification,
 } from "@/components/AppShell";
+import { CanvasLink } from "@/components/CanvasLink";
 import {
   AssignConsultantButton,
   CaseActions,
@@ -287,9 +287,9 @@ export default async function IniciativaOportunidadPage({
       />
       <div className="content">
         <p className="row-meta" style={{ marginBottom: "0.75rem" }}>
-          <Link href={iniHref} style={{ textDecoration: "underline" }}>
+          <CanvasLink href={iniHref} style={{ textDecoration: "underline" }}>
             ← {ini?.name ?? slug}
-          </Link>
+          </CanvasLink>
         </p>
 
         <div style={{ marginBottom: "1rem" }}>

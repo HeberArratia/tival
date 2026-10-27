@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { notFound, useRouter } from "next/navigation";
 import { AppShell, PlaybookPill, SegmentPill, Topbar } from "@/components/AppShell";
+import { CanvasLink } from "@/components/CanvasLink";
 import { InitiativeFieldDefaults } from "@/components/OpportunityFields";
 import { StageRail } from "@/components/ProcessUI";
 import {
@@ -66,9 +67,9 @@ export function InitiativeShowClient({ slug }: { slug: string }) {
         actions={
           <div className="topbar-actions">
             {canvasHref ? (
-              <Link className="btn btn-primary" href={canvasHref}>
+              <CanvasLink className="btn btn-primary" href={canvasHref}>
                 Canvas
-              </Link>
+              </CanvasLink>
             ) : null}
             <Link className="btn" href={`/playbooks/${pb.slug}`}>
               Ver playbook
