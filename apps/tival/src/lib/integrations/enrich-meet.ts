@@ -21,7 +21,10 @@ import { resolveDriveAccessToken } from "@/lib/integrations/google-drive/client"
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Reintentos mientras location.status === processing. */
+/**
+ * Espera el id de Calendar. `pushed` puede llegar antes que
+ * `calendar_event.external_id`; solo se corta antes si el estado es `failed`.
+ */
 const RETRY_DELAYS_MS = [0, 2_000, 5_000, 10_000];
 
 export type EnrichMeetResult =
@@ -85,7 +88,7 @@ export async function enrichMeetForCase(
     externalId = fetched.resource.calendar_event?.external_id ?? null;
 
     if (externalId) break;
-    if (locationStatus && locationStatus !== "processing") break;
+    if (locationStatus === "failed") break;
   }
 
   if (!externalId) {

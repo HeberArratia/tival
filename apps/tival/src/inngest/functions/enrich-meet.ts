@@ -43,15 +43,17 @@ export const enrichMeetArtifacts = inngest.createFunction(
     const caseId = data.caseId;
     if (!caseId) throw new Error("missing_case_id");
 
-    const result = await step.run("enrich-meet", async () =>
-      enrichMeetForCase(caseId)
-    );
+    const result = await step.run("enrich-meet", async () => {
+      const enriched = await enrichMeetForCase(caseId);
+      if (!enriched.ok && RETRYABLE_ENRICH_ERRORS.includes(enriched.error)) {
+        // Dentro del step: un { ok: false } devuelto queda memoizado y los
+        // reintentos no vuelven a consultar Calendly.
+        throw new Error(enriched.error);
+      }
+      return enriched;
+    });
 
     if (!result.ok) {
-      const retryable = RETRYABLE_ENRICH_ERRORS.includes(result.error);
-      if (retryable) {
-        throw new Error(result.error);
-      }
       // Fallo no recuperable: igual avisamos reagenda con el meet que haya.
       if (data.reason === "reschedule") {
         await step.run("notify-reschedule-after-enrich-fail", async () => {
