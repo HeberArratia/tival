@@ -28,9 +28,18 @@ export async function ensureDriveFolderForCase(
   caseRow: CaseRow
 ): Promise<EnsureDriveFolderResult> {
   if (caseRow.driveFolderId) {
-    void import("@/inngest/functions/post-meet-collect").then(
-      ({ schedulePostMeetCollect }) => schedulePostMeetCollect(caseRow.id)
-    );
+    try {
+      const { schedulePostMeetCollect } = await import(
+        "@/inngest/functions/post-meet-collect"
+      );
+      await schedulePostMeetCollect(caseRow.id);
+    } catch (e) {
+      console.error(
+        "[post-meet] schedule after drive folder exists",
+        caseRow.id,
+        e instanceof Error ? e.message : e
+      );
+    }
     return { ok: true, case: caseRow, created: false };
   }
 
@@ -107,9 +116,18 @@ export async function ensureDriveFolderForCase(
 
     const next = updated ?? caseRow;
     // Carpeta lista → encolar post-meet (si ya hay meetCode, Inngest podrá mover).
-    void import("@/inngest/functions/post-meet-collect").then(
-      ({ schedulePostMeetCollect }) => schedulePostMeetCollect(next.id)
-    );
+    try {
+      const { schedulePostMeetCollect } = await import(
+        "@/inngest/functions/post-meet-collect"
+      );
+      await schedulePostMeetCollect(next.id);
+    } catch (e) {
+      console.error(
+        "[post-meet] schedule after drive folder created",
+        next.id,
+        e instanceof Error ? e.message : e
+      );
+    }
 
     return {
       ok: true,

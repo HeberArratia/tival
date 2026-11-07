@@ -158,45 +158,103 @@ export const collectPostMeetArtifacts = inngest.createFunction(
   }
 );
 
+export type SchedulePostMeetResult =
+  | { ok: true; skipped?: false; eventId: string; slot: string }
+  | { ok: true; skipped: true; reason: "send_disabled" }
+  | { ok: false; error: string; slot?: string };
+
+async function recordPostMeetEnqueueEvent(
+  caseId: string,
+  type:
+    | "post_meet_enqueued"
+    | "post_meet_enqueue_skipped"
+    | "post_meet_enqueue_failed",
+  payload: Record<string, unknown>
+) {
+  const db = await getDb();
+  await db.insert(caseEvents).values({
+    caseId,
+    type,
+    payload,
+    actor: "integracion",
+  });
+}
+
 /**
- * Encola la recolección (no bloquea).
+ * Encola la recolección post-meet.
  * Idempotente por case + `scheduledAt`: una reagenda genera un event id nuevo.
+ * Debe awaitedse desde enrich/pago: un fire-and-forget puede perder el send.
  */
-export async function schedulePostMeetCollect(caseId: string) {
+export async function schedulePostMeetCollect(
+  caseId: string
+): Promise<SchedulePostMeetResult> {
   if (!isInngestSendEnabled()) {
     console.info(
       "[inngest] send disabled (env=%s) — skip post-meet %s",
       tivalRuntimeEnv(),
       caseId
     );
-    return;
+    await recordPostMeetEnqueueEvent(caseId, "post_meet_enqueue_skipped", {
+      reason: "send_disabled",
+      env: tivalRuntimeEnv(),
+    });
+    return { ok: true, skipped: true, reason: "send_disabled" };
   }
 
   // Cloud prod exige event key. Local + CLI (INNGEST_ENABLED=1) puede ir sin ella.
   if (!process.env.INNGEST_EVENT_KEY && tivalRuntimeEnv() === "production") {
     console.warn("[inngest] INNGEST_EVENT_KEY missing — skip post-meet");
-    return;
+    await recordPostMeetEnqueueEvent(caseId, "post_meet_enqueue_failed", {
+      reason: "event_key_missing",
+    });
+    return { ok: false, error: "event_key_missing" };
   }
 
-  try {
-    const db = await getDb();
-    const [row] = await db
-      .select({ scheduledAt: cases.scheduledAt })
-      .from(cases)
-      .where(eq(cases.id, caseId))
-      .limit(1);
-    const slot = row?.scheduledAt?.toISOString() ?? "unscheduled";
+  const db = await getDb();
+  const [row] = await db
+    .select({ scheduledAt: cases.scheduledAt })
+    .from(cases)
+    .where(eq(cases.id, caseId))
+    .limit(1);
+  const slot = row?.scheduledAt?.toISOString() ?? "unscheduled";
+  const eventId = `post-meet-${caseId}-${slot}`;
 
+  try {
     await inngest.send({
-      id: `post-meet-${caseId}-${slot}`,
+      id: eventId,
       name: "case/post-meet.collect",
       data: { caseId } satisfies PostMeetEventData,
     });
+    await recordPostMeetEnqueueEvent(caseId, "post_meet_enqueued", {
+      eventId,
+      slot,
+    });
+    return { ok: true, eventId, slot };
   } catch (e) {
-    console.error(
-      "[inngest] schedulePostMeetCollect",
-      caseId,
-      e instanceof Error ? e.message : e
-    );
+    const error = e instanceof Error ? e.message : "inngest_send_failed";
+    // Un reintento corto: el fallo típico es blip de red al salir del step.
+    try {
+      await inngest.send({
+        id: eventId,
+        name: "case/post-meet.collect",
+        data: { caseId } satisfies PostMeetEventData,
+      });
+      await recordPostMeetEnqueueEvent(caseId, "post_meet_enqueued", {
+        eventId,
+        slot,
+        retried: true,
+      });
+      return { ok: true, eventId, slot };
+    } catch (e2) {
+      const retryError = e2 instanceof Error ? e2.message : error;
+      console.error("[inngest] schedulePostMeetCollect", caseId, retryError);
+      await recordPostMeetEnqueueEvent(caseId, "post_meet_enqueue_failed", {
+        error: retryError,
+        eventId,
+        slot,
+        firstError: error,
+      });
+      return { ok: false, error: retryError, slot };
+    }
   }
 }

@@ -621,6 +621,51 @@ const EVENT_LABELS: Record<
     kind: "efecto",
     result: "fail",
   },
+  post_meet_enqueued: {
+    title: "Efecto · post-meet encolado",
+    kind: "efecto",
+    result: "ok",
+  },
+  post_meet_enqueue_skipped: {
+    title: "Efecto · post-meet omitido (env)",
+    kind: "efecto",
+    result: "info",
+  },
+  post_meet_enqueue_failed: {
+    title: "Efecto · post-meet no se pudo encolar",
+    kind: "efecto",
+    result: "fail",
+  },
+  post_meet_collected: {
+    title: "Efecto · artefactos post-meet movidos",
+    kind: "efecto",
+    result: "ok",
+  },
+  post_meet_timeout: {
+    title: "Efecto · post-meet timeout",
+    kind: "efecto",
+    result: "fail",
+  },
+  post_meet_failed: {
+    title: "Efecto · post-meet falló",
+    kind: "efecto",
+    result: "fail",
+  },
+  proposal_n8n_triggered: {
+    title: "Efecto · propuesta n8n disparada",
+    kind: "efecto",
+    result: "ok",
+  },
+  proposal_n8n_failed: {
+    title: "Efecto · propuesta n8n falló",
+    kind: "efecto",
+    result: "fail",
+  },
+  proposal_n8n_skipped: {
+    title: "Efecto · propuesta n8n omitida",
+    kind: "efecto",
+    result: "info",
+  },
   diagnostico_enriched: {
     title: "Efecto · Diagnóstico Alfondo enriquecido",
     kind: "efecto",

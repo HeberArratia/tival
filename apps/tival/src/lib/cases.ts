@@ -1998,10 +1998,20 @@ export async function applyMeetEnrichment(
     "integracion"
   );
 
-  // Post-meet collect (Inngest): requiere meetCode; carpeta puede llegar al pagar.
-  void import("@/inngest/functions/post-meet-collect").then(({ schedulePostMeetCollect }) =>
-    schedulePostMeetCollect(updated.id)
-  );
+  // Post-meet: await el send. Fire-and-forget dentro del step de enrich puede
+  // perder el evento (propuesta nunca se dispara) sin dejar rastro en el case.
+  try {
+    const { schedulePostMeetCollect } = await import(
+      "@/inngest/functions/post-meet-collect"
+    );
+    await schedulePostMeetCollect(updated.id);
+  } catch (e) {
+    console.error(
+      "[post-meet] schedule after meet enrich",
+      updated.id,
+      e instanceof Error ? e.message : e
+    );
+  }
 
   // Si ya había consultor asignado antes del enrichment, invitar a Calendar.
   void import("@/lib/integrations/grant-consultant-meet-access").then(
