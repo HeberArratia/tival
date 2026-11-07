@@ -23,9 +23,11 @@
     "db:migrate-drop-won-lost": "tsx scripts/migrate-drop-won-lost-status.ts",
     "db:migrate-contacts": "tsx scripts/migrate-contacts-companies.ts",
     "db:migrate-kapso": "tsx scripts/migrate-kapso-provider.ts",
+    "db:migrate-gmail": "tsx scripts/migrate-gmail-provider.ts",
     "db:seed-demo": "tsx scripts/seed-demo-identity.ts",
     "db:wipe-opps": "tsx scripts/wipe-identity-opps.ts",
-    "import:bigin": "tsx scripts/import-bigin.ts"
+    "import:bigin": "tsx scripts/import-bigin.ts",
+    "sync:gmail": "tsx scripts/sync-gmail.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",

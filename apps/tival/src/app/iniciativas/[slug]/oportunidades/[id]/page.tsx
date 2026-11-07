@@ -45,6 +45,7 @@ import {
   OpportunityFieldValues,
 } from "@/components/OpportunityFields";
 import { OpportunityIdentityEditor } from "@/components/OpportunityIdentityEditor";
+import { CaseEmailThreads } from "@/components/CaseEmailThreads";
 import { OpportunityNotes } from "@/components/OpportunityNotes";
 import { OpportunityTabs } from "@/components/OpportunityTabs";
 import { ProductEditor } from "@/components/ProductEditor";
@@ -52,6 +53,10 @@ import { RegionEditor } from "@/components/RegionEditor";
 import { SegmentEditor } from "@/components/SegmentEditor";
 import { listCaseNotes } from "@/lib/case-notes";
 import { caseTitle, getCaseWithEvents, getStagesForCase } from "@/lib/cases";
+import {
+  getGmailMailboxSyncState,
+  listEmailThreadsForCase,
+} from "@/lib/integrations/gmail/sync";
 import {
   extrasForCase,
   initiativeForCase,
@@ -234,9 +239,12 @@ export default async function IniciativaOportunidadPage({
           ? `/iniciativas/${ini.slug}`
           : "/iniciativas";
   const notes = await listCaseNotes(c.id);
+  const emailThreads = await listEmailThreadsForCase(c.id);
+  const gmailSync = await getGmailMailboxSyncState(c.workspaceId);
   const initialTab =
     tabParam === "productos" ||
     tabParam === "notas" ||
+    tabParam === "correos" ||
     tabParam === "timeline"
       ? tabParam
       : "general";
@@ -527,6 +535,7 @@ export default async function IniciativaOportunidadPage({
               initialTab={initialTab}
               productsCount={currentProductKeys.length}
               notesCount={notes.length}
+              emailsCount={emailThreads.length}
               general={
                 <>
                   <div className="panel" style={{ marginBottom: "1rem" }}>
@@ -711,6 +720,22 @@ export default async function IniciativaOportunidadPage({
                   </p>
                   <div style={{ marginTop: "0.85rem" }}>
                     <OpportunityNotes caseId={c.id} initialNotes={notes} />
+                  </div>
+                </div>
+              }
+              emails={
+                <div className="panel">
+                  <p className="panel-kicker">Gmail · hablemos@</p>
+                  <h3>Correos</h3>
+                  <p className="lede" style={{ marginTop: "0.35rem" }}>
+                    Cadenas consultor–cliente sincronizadas desde el buzón
+                    compartido (solo lectura).
+                  </p>
+                  <div style={{ marginTop: "0.85rem" }}>
+                    <CaseEmailThreads
+                      threads={emailThreads}
+                      sync={gmailSync}
+                    />
                   </div>
                 </div>
               }

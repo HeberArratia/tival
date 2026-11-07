@@ -47,6 +47,7 @@ export const integrationProviderEnum = pgEnum("integration_provider", [
   "calendly",
   "mercadopago",
   "google_drive",
+  "gmail",
   "slack",
   "bigin",
   "kapso",
@@ -463,4 +464,120 @@ export type IntegrationProvider =
   (typeof integrationProviderEnum.enumValues)[number];
 export type IntegrationStatus =
   (typeof integrationStatusEnum.enumValues)[number];
+/**
+ * Estado de sync de un buzón Gmail (evidencia: último intento / éxito / error).
+ * Fase 1: un row por workspace+mailbox (ej. hablemos@alfondo.cl).
+ */
+export const gmailMailboxes = pgTable(
+  "gmail_mailboxes",
+  {
+    id: id(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
+    email: text("email").notNull(),
+    /** Cursor Gmail History API — null = aún no hubo sync exitoso. */
+    lastHistoryId: text("last_history_id"),
+    lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
+    lastSuccessAt: timestamp("last_success_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    /** Contadores del último run: processed, linked, skippedNoise, etc. */
+    lastStats: jsonb("last_stats").$type<Record<string, unknown>>().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("gmail_mailboxes_workspace_email").on(t.workspaceId, t.email),
+    index("gmail_mailboxes_workspace").on(t.workspaceId),
+  ]
+);
+
+/** Hilo de correo sincronizado desde un buzón. */
+export const emailThreads = pgTable(
+  "email_threads",
+  {
+    id: id(),
+    workspaceId: uuid("workspace_id")
+      .notNull()
+      .references(() => workspaces.id),
+    mailboxId: uuid("mailbox_id")
+      .notNull()
+      .references(() => gmailMailboxes.id, { onDelete: "cascade" }),
+    gmailThreadId: text("gmail_thread_id").notNull(),
+    subject: text("subject"),
+    snippet: text("snippet"),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+    /** Emails de participantes (normalizados, lower-case). */
+    participantEmails: jsonb("participant_emails").$type<string[]>().default([]),
+    /** Oculto manualmente / ruido. */
+    hidden: boolean("hidden").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("email_threads_mailbox_gmail").on(t.mailboxId, t.gmailThreadId),
+    index("email_threads_workspace").on(t.workspaceId),
+    index("email_threads_last_message").on(t.lastMessageAt),
+  ]
+);
+
+/** Mensaje dentro de un hilo. */
+export const emailMessages = pgTable(
+  "email_messages",
+  {
+    id: id(),
+    threadId: uuid("thread_id")
+      .notNull()
+      .references(() => emailThreads.id, { onDelete: "cascade" }),
+    gmailMessageId: text("gmail_message_id").notNull(),
+    fromEmail: text("from_email"),
+    fromName: text("from_name"),
+    toEmails: jsonb("to_emails").$type<string[]>().default([]),
+    ccEmails: jsonb("cc_emails").$type<string[]>().default([]),
+    subject: text("subject"),
+    bodyText: text("body_text"),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("email_messages_gmail_id").on(t.gmailMessageId),
+    index("email_messages_thread_sent").on(t.threadId, t.sentAt),
+  ]
+);
+
+/** Hilo ↔ case (N threads por case; un thread puede pegarse a varios cases del mismo email). */
+export const emailThreadCases = pgTable(
+  "email_thread_cases",
+  {
+    id: id(),
+    threadId: uuid("thread_id")
+      .notNull()
+      .references(() => emailThreads.id, { onDelete: "cascade" }),
+    caseId: uuid("case_id")
+      .notNull()
+      .references(() => cases.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (t) => [
+    uniqueIndex("email_thread_cases_pair").on(t.threadId, t.caseId),
+    index("email_thread_cases_case").on(t.caseId),
+  ]
+);
+
 export type ProductRow = typeof products.$inferSelect;
+export type GmailMailbox = typeof gmailMailboxes.$inferSelect;
+export type EmailThread = typeof emailThreads.$inferSelect;
+export type EmailMessage = typeof emailMessages.$inferSelect;
+export type EmailThreadCase = typeof emailThreadCases.$inferSelect;

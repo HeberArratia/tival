@@ -35,6 +35,7 @@ type StoredCredentials = {
 export const CONNECTABLE_PROVIDERS: IntegrationProvider[] = [
   "calendly",
   "google_drive",
+  "gmail",
   "kapso",
 ];
 
@@ -516,6 +517,129 @@ export async function getDriveConnectionForWorkspace(workspaceId: string) {
   return {
     connectionId: row.id,
     config: (row.config ?? {}) as Record<string, unknown>,
+    tokens: {
+      refreshToken: creds.refreshToken,
+      accessToken: creds.accessToken,
+      expiresAt: creds.expiresAt,
+      tokenType: creds.tokenType,
+      scope: creds.scope,
+      accountEmail: creds.accountEmail,
+    } satisfies DriveOAuthTokens,
+    status: row.status,
+  };
+}
+
+export async function updateGmailConnection(input: {
+  connectionId: string;
+  workspaceSlug: string;
+  tokens?: DriveOAuthTokens | null;
+  markConnected?: boolean;
+  lastError?: string | null;
+}) {
+  const ws = await getWorkspaceBySlug(input.workspaceSlug);
+  if (!ws) throw new Error(`Workspace not found: ${input.workspaceSlug}`);
+
+  const db = await getDb();
+  const [current] = await db
+    .select()
+    .from(integrationConnections)
+    .where(
+      and(
+        eq(integrationConnections.id, input.connectionId),
+        eq(integrationConnections.workspaceId, ws.id)
+      )
+    )
+    .limit(1);
+
+  if (!current) throw new Error("Connection not found");
+  if (current.provider !== "gmail") {
+    throw new Error("Not a gmail connection");
+  }
+
+  const patch: Partial<typeof integrationConnections.$inferInsert> = {
+    updatedAt: new Date(),
+  };
+
+  if (input.lastError !== undefined) {
+    patch.lastError = input.lastError;
+  } else {
+    patch.lastError = null;
+  }
+
+  if (input.tokens !== undefined) {
+    if (input.tokens === null) {
+      patch.credentialsEnc = null;
+    } else {
+      const prev = credentialsFromEnc(current.credentialsEnc);
+      const next: StoredCredentials = {
+        ...prev,
+        refreshToken: input.tokens.refreshToken,
+        accessToken: input.tokens.accessToken,
+        expiresAt: input.tokens.expiresAt,
+        tokenType: input.tokens.tokenType,
+        scope: input.tokens.scope,
+        accountEmail: input.tokens.accountEmail ?? prev.accountEmail,
+      };
+      patch.credentialsEnc = encryptSecret(JSON.stringify(next));
+    }
+  }
+
+  const credsAfter =
+    input.tokens === null
+      ? {}
+      : input.tokens
+        ? { ...credentialsFromEnc(current.credentialsEnc), ...input.tokens }
+        : credentialsFromEnc(current.credentialsEnc);
+  const hasRefresh = Boolean(credsAfter.refreshToken);
+
+  if (input.markConnected === false) {
+    patch.status = "disconnected";
+  } else if (hasRefresh) {
+    patch.status = "connected";
+  } else {
+    patch.status = "disconnected";
+  }
+
+  if (input.lastError) {
+    patch.status = "error";
+  }
+
+  const [updated] = await db
+    .update(integrationConnections)
+    .set(patch)
+    .where(eq(integrationConnections.id, current.id))
+    .returning();
+
+  return toPublic(updated, ws);
+}
+
+export async function getGmailConnectionForWorkspace(workspaceId: string) {
+  const db = await getDb();
+  const [row] = await db
+    .select()
+    .from(integrationConnections)
+    .where(
+      and(
+        eq(integrationConnections.workspaceId, workspaceId),
+        eq(integrationConnections.provider, "gmail")
+      )
+    )
+    .limit(1);
+
+  if (!row) return null;
+  const creds = credentialsFromEnc(row.credentialsEnc);
+  if (!creds.refreshToken) {
+    return {
+      connectionId: row.id,
+      workspaceSlug: null as string | null,
+      tokens: null as DriveOAuthTokens | null,
+      status: row.status,
+    };
+  }
+
+  return {
+    connectionId: row.id,
+    workspaceSlug: null as string | null,
     tokens: {
       refreshToken: creds.refreshToken,
       accessToken: creds.accessToken,

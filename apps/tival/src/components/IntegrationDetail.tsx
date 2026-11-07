@@ -63,6 +63,11 @@ export function IntegrationDetail({
           workspaceSlug={workspaceSlug}
           connection={connection}
         />
+      ) : provider.id === "gmail" && provider.connectable ? (
+        <GmailConnectPanel
+          workspaceSlug={workspaceSlug}
+          connection={connection}
+        />
       ) : provider.id === "kapso" && provider.connectable ? (
         <KapsoConnectPanel
           workspaceSlug={workspaceSlug}
@@ -249,6 +254,117 @@ function DriveConnectPanel({
         </div>
       </form>
 
+      {local.lastError ? (
+        <p className="field-error" style={{ marginTop: "0.75rem" }}>
+          Último error · {local.lastError}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function GmailConnectPanel({
+  workspaceSlug,
+  connection,
+}: {
+  workspaceSlug: string;
+  connection: ConnectionPublic | null;
+}) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
+  const [local, setLocal] = useState(connection);
+
+  useEffect(() => {
+    setLocal(connection);
+  }, [connection]);
+
+  useEffect(() => {
+    const gmail = searchParams.get("gmail");
+    if (gmail === "connected") {
+      setFlash("Gmail conectado.");
+      router.replace("/integraciones/gmail");
+    } else if (gmail === "error") {
+      setError(searchParams.get("reason") || "Error al conectar Gmail");
+      router.replace("/integraciones/gmail");
+    }
+  }, [searchParams, router]);
+
+  async function ensure() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/integrations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspaceSlug, provider: "gmail" }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "Error");
+      setLocal(data.connection);
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!local) {
+    return (
+      <div className="panel">
+        <div className="integration-actions" style={{ marginTop: 0 }}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={busy}
+            onClick={ensure}
+          >
+            {busy ? "Creando…" : "Activar conexión"}
+          </button>
+          {error ? <p className="field-error">{error}</p> : null}
+        </div>
+      </div>
+    );
+  }
+
+  const oauthHref = `/api/integrations/gmail/start?workspace=${encodeURIComponent(workspaceSlug)}`;
+
+  return (
+    <div className="panel">
+      <p className="panel-kicker">Configuración</p>
+      {flash ? <p className="row-meta">{flash}</p> : null}
+
+      <p className="lede" style={{ marginTop: "0.35rem", marginBottom: 0 }}>
+        OAuth readonly del buzón compartido. Entrá con{" "}
+        <span className="mono">hablemos@alfondo.cl</span> (no con tu correo
+        personal).
+      </p>
+
+      <div className="integration-actions" style={{ marginTop: "0.75rem" }}>
+        <a className="btn btn-primary" href={oauthHref}>
+          {local.hasRefreshToken ? "Reconectar Gmail" : "Conectar Gmail"}
+        </a>
+      </div>
+
+      {local.hasRefreshToken ? (
+        <p className="row-meta" style={{ marginTop: "0.65rem" }}>
+          OAuth · OK
+          {local.accountEmail ? ` · ${local.accountEmail}` : ""}
+        </p>
+      ) : (
+        <p className="row-meta" style={{ marginTop: "0.65rem" }}>
+          Pendiente · autorizá hablemos@
+        </p>
+      )}
+
+      {error ? (
+        <p className="field-error" style={{ marginTop: "0.75rem" }}>
+          {error}
+        </p>
+      ) : null}
       {local.lastError ? (
         <p className="field-error" style={{ marginTop: "0.75rem" }}>
           Último error · {local.lastError}

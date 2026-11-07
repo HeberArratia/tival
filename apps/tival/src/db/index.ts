@@ -10,7 +10,7 @@ export type Db =
   | ReturnType<typeof drizzlePglite<typeof schema>>;
 
 /** Subir cuando se agreguen tablas/columnas en ensure* (hot-reload seguro). */
-const SCHEMA_ENSURE_VERSION = 3;
+const SCHEMA_ENSURE_VERSION = 5;
 
 const globalForDb = globalThis as unknown as {
   pgClient?: ReturnType<typeof postgres>;
@@ -48,13 +48,16 @@ async function ensurePgliteSchema(client: PGlite) {
 
     DO $$ BEGIN
       CREATE TYPE integration_provider AS ENUM (
-        'calendly','mercadopago','google_drive','slack','bigin','kapso'
+        'calendly','mercadopago','google_drive','gmail','slack','bigin','kapso'
       );
     EXCEPTION WHEN duplicate_object THEN null; END $$;
 
-    -- DBs existentes creadas sin kapso
+    -- DBs existentes creadas sin kapso / gmail
     DO $$ BEGIN
       ALTER TYPE integration_provider ADD VALUE IF NOT EXISTS 'kapso';
+    EXCEPTION WHEN others THEN null; END $$;
+    DO $$ BEGIN
+      ALTER TYPE integration_provider ADD VALUE IF NOT EXISTS 'gmail';
     EXCEPTION WHEN others THEN null; END $$;
 
     DO $$ BEGIN
@@ -264,6 +267,73 @@ async function ensurePgliteSchema(client: PGlite) {
     ALTER TABLE products DROP COLUMN IF EXISTS fund_name;
     ALTER TABLE products DROP COLUMN IF EXISTS institution;
     DROP INDEX IF EXISTS products_workspace_fund;
+
+    CREATE TABLE IF NOT EXISTS gmail_mailboxes (
+      id uuid PRIMARY KEY,
+      workspace_id uuid NOT NULL REFERENCES workspaces(id),
+      email text NOT NULL,
+      last_history_id text,
+      last_attempt_at timestamptz,
+      last_success_at timestamptz,
+      last_error text,
+      last_stats jsonb DEFAULT '{}'::jsonb,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS gmail_mailboxes_workspace_email
+      ON gmail_mailboxes(workspace_id, email);
+    CREATE INDEX IF NOT EXISTS gmail_mailboxes_workspace
+      ON gmail_mailboxes(workspace_id);
+
+    CREATE TABLE IF NOT EXISTS email_threads (
+      id uuid PRIMARY KEY,
+      workspace_id uuid NOT NULL REFERENCES workspaces(id),
+      mailbox_id uuid NOT NULL REFERENCES gmail_mailboxes(id) ON DELETE CASCADE,
+      gmail_thread_id text NOT NULL,
+      subject text,
+      snippet text,
+      last_message_at timestamptz,
+      participant_emails jsonb DEFAULT '[]'::jsonb,
+      hidden boolean NOT NULL DEFAULT false,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS email_threads_mailbox_gmail
+      ON email_threads(mailbox_id, gmail_thread_id);
+    CREATE INDEX IF NOT EXISTS email_threads_workspace ON email_threads(workspace_id);
+    CREATE INDEX IF NOT EXISTS email_threads_last_message ON email_threads(last_message_at);
+
+    CREATE TABLE IF NOT EXISTS email_messages (
+      id uuid PRIMARY KEY,
+      thread_id uuid NOT NULL REFERENCES email_threads(id) ON DELETE CASCADE,
+      gmail_message_id text NOT NULL,
+      from_email text,
+      from_name text,
+      to_emails jsonb DEFAULT '[]'::jsonb,
+      cc_emails jsonb DEFAULT '[]'::jsonb,
+      subject text,
+      body_text text,
+      sent_at timestamptz,
+      created_at timestamptz NOT NULL DEFAULT now()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS email_messages_gmail_id
+      ON email_messages(gmail_message_id);
+    CREATE INDEX IF NOT EXISTS email_messages_thread_sent
+      ON email_messages(thread_id, sent_at);
+
+    CREATE TABLE IF NOT EXISTS email_thread_cases (
+      id uuid PRIMARY KEY,
+      thread_id uuid NOT NULL REFERENCES email_threads(id) ON DELETE CASCADE,
+      case_id uuid NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+      created_at timestamptz NOT NULL DEFAULT now()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS email_thread_cases_pair
+      ON email_thread_cases(thread_id, case_id);
+    CREATE INDEX IF NOT EXISTS email_thread_cases_case ON email_thread_cases(case_id);
+
+    DO $$ BEGIN
+      ALTER TYPE integration_provider ADD VALUE IF NOT EXISTS 'gmail';
+    EXCEPTION WHEN others THEN null; END $$;
   `);
   globalForDb.migrated = true;
   globalForDb.schemaEnsureVersion = SCHEMA_ENSURE_VERSION;
@@ -273,6 +343,10 @@ async function ensurePgliteSchema(client: PGlite) {
 async function ensurePostgresColumns(sql: ReturnType<typeof postgres>) {
   if (globalForDb.schemaEnsureVersion === SCHEMA_ENSURE_VERSION) return;
   await sql.unsafe(`
+    DO $$ BEGIN
+      ALTER TYPE integration_provider ADD VALUE IF NOT EXISTS 'gmail';
+    EXCEPTION WHEN others THEN null; END $$;
+
     ALTER TABLE cases ADD COLUMN IF NOT EXISTS segmento text;
     ALTER TABLE cases ADD COLUMN IF NOT EXISTS segmento_sugerido text;
     ALTER TABLE cases ADD COLUMN IF NOT EXISTS meet_code text;
@@ -294,6 +368,69 @@ async function ensurePostgresColumns(sql: ReturnType<typeof postgres>) {
     );
     CREATE INDEX IF NOT EXISTS case_notes_case_created
       ON case_notes(case_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS gmail_mailboxes (
+      id uuid PRIMARY KEY,
+      workspace_id uuid NOT NULL REFERENCES workspaces(id),
+      email text NOT NULL,
+      last_history_id text,
+      last_attempt_at timestamptz,
+      last_success_at timestamptz,
+      last_error text,
+      last_stats jsonb DEFAULT '{}'::jsonb,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS gmail_mailboxes_workspace_email
+      ON gmail_mailboxes(workspace_id, email);
+    CREATE INDEX IF NOT EXISTS gmail_mailboxes_workspace
+      ON gmail_mailboxes(workspace_id);
+
+    CREATE TABLE IF NOT EXISTS email_threads (
+      id uuid PRIMARY KEY,
+      workspace_id uuid NOT NULL REFERENCES workspaces(id),
+      mailbox_id uuid NOT NULL REFERENCES gmail_mailboxes(id) ON DELETE CASCADE,
+      gmail_thread_id text NOT NULL,
+      subject text,
+      snippet text,
+      last_message_at timestamptz,
+      participant_emails jsonb DEFAULT '[]'::jsonb,
+      hidden boolean NOT NULL DEFAULT false,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS email_threads_mailbox_gmail
+      ON email_threads(mailbox_id, gmail_thread_id);
+    CREATE INDEX IF NOT EXISTS email_threads_workspace ON email_threads(workspace_id);
+    CREATE INDEX IF NOT EXISTS email_threads_last_message ON email_threads(last_message_at);
+
+    CREATE TABLE IF NOT EXISTS email_messages (
+      id uuid PRIMARY KEY,
+      thread_id uuid NOT NULL REFERENCES email_threads(id) ON DELETE CASCADE,
+      gmail_message_id text NOT NULL,
+      from_email text,
+      from_name text,
+      to_emails jsonb DEFAULT '[]'::jsonb,
+      cc_emails jsonb DEFAULT '[]'::jsonb,
+      subject text,
+      body_text text,
+      sent_at timestamptz,
+      created_at timestamptz NOT NULL DEFAULT now()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS email_messages_gmail_id
+      ON email_messages(gmail_message_id);
+    CREATE INDEX IF NOT EXISTS email_messages_thread_sent
+      ON email_messages(thread_id, sent_at);
+
+    CREATE TABLE IF NOT EXISTS email_thread_cases (
+      id uuid PRIMARY KEY,
+      thread_id uuid NOT NULL REFERENCES email_threads(id) ON DELETE CASCADE,
+      case_id uuid NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+      created_at timestamptz NOT NULL DEFAULT now()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS email_thread_cases_pair
+      ON email_thread_cases(thread_id, case_id);
+    CREATE INDEX IF NOT EXISTS email_thread_cases_case ON email_thread_cases(case_id);
   `);
   globalForDb.migrated = true;
   globalForDb.schemaEnsureVersion = SCHEMA_ENSURE_VERSION;

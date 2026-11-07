@@ -2,23 +2,32 @@
 
 import { useState, type ReactNode } from "react";
 
-export type OpportunityTabId = "general" | "productos" | "notas" | "timeline";
+export type OpportunityTabId =
+  | "general"
+  | "productos"
+  | "notas"
+  | "correos"
+  | "timeline";
 
 export function OpportunityTabs({
   general,
   products,
   notes,
+  emails,
   timeline,
   productsCount = 0,
   notesCount = 0,
+  emailsCount = 0,
   initialTab = "general",
 }: {
   general: ReactNode;
   products: ReactNode;
   notes: ReactNode;
+  emails: ReactNode;
   timeline: ReactNode;
   productsCount?: number;
   notesCount?: number;
+  emailsCount?: number;
   initialTab?: OpportunityTabId;
 }) {
   const [tab, setTab] = useState<OpportunityTabId>(initialTab);
@@ -62,6 +71,18 @@ export function OpportunityTabs({
         <button
           type="button"
           role="tab"
+          aria-selected={tab === "correos"}
+          className={`view-tab ${tab === "correos" ? "is-active" : ""}`}
+          onClick={() => setTab("correos")}
+        >
+          Correos
+          {emailsCount > 0 ? (
+            <span className="view-tab-count">{emailsCount}</span>
+          ) : null}
+        </button>
+        <button
+          type="button"
+          role="tab"
           aria-selected={tab === "timeline"}
           className={`view-tab ${tab === "timeline" ? "is-active" : ""}`}
           onClick={() => setTab("timeline")}
@@ -74,6 +95,7 @@ export function OpportunityTabs({
         {tab === "general" ? general : null}
         {tab === "productos" ? products : null}
         {tab === "notas" ? notes : null}
+        {tab === "correos" ? emails : null}
         {tab === "timeline" ? timeline : null}
       </div>
     </div>

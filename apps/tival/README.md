@@ -94,6 +94,23 @@ npm run inngest:dev
 
 Env Cloud (Vercel): `INNGEST_ENV`, `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY` del env production.
 
+### Correos consultor–cliente (Gmail · hablemos@)
+
+Sync readonly del buzón compartido vía **OAuth** (cuenta `hablemos@`, no cada consultor). Mismo `GOOGLE_CLIENT_ID` / `SECRET` que Drive. Inngest cron cada 15 min; al abrir la oportunidad se lee de DB. Match por `contacts.email`. Evidencia en `gmail_mailboxes`.
+
+1. GCP OAuth client → redirect URI: `{APP_URL}/api/integrations/gmail/callback`
+2. Consent screen → scope `gmail.readonly` (+ `userinfo.email`)
+3. En Tival: **/integraciones/gmail** → Conectar con `hablemos@alfondo.cl`
+
+```bash
+# opcional
+# GMAIL_SYNC_MAILBOX=hablemos@alfondo.cl
+# GMAIL_SYNC_BOOTSTRAP_DAYS=30
+npm run sync:gmail   # corrida manual
+```
+
+UI: tab **Correos** en la oportunidad.
+
 ### Propuesta (n8n)
 
 Cuando post-meet mueve por primera vez un artifact `notes`, Tival hace `POST` al webhook n8n con el contexto del case (`caseId`, carpeta, `notesFileId`, consultor, etc.). n8n redacta el correo, lo envía al consultor y avisa en Slack `#novedades`.

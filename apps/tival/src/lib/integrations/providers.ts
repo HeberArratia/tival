@@ -45,6 +45,14 @@ export const INTEGRATION_PROVIDERS: ProviderMeta[] = [
     connectable: true,
   },
   {
+    id: "gmail",
+    slug: "gmail",
+    name: "Gmail",
+    blurb:
+      "Sync readonly del buzón hablemos@: cadenas consultor–cliente en la oportunidad.",
+    connectable: true,
+  },
+  {
     id: "slack",
     slug: "slack",
     name: "Slack",
